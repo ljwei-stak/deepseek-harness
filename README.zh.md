@@ -71,10 +71,14 @@ U(m | x) = wq(c) Qm + wc(c) Cm + wl(c) (1 - Lm)
 
 ### Windows 桌面客户端
 
-从项目 Release 下载一键安装包：
+从项目 Release 下载一键安装包。由于安装包约 574 MiB，GitHub Release 将其拆成较短的分片以避免长连接中断；在 Windows 上运行下载脚本即可自动合并并核验原始安装包的 SHA256：
 
-- [DeepSeek Harness Model Router + GALGame 0.4.7 Windows x64 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.7/DeepSeek-Harness-ModelRouter-GALGame-Setup-0.4.7-Windows-x64.exe)
+- [下载并核验脚本](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.7/download_desktop_release.ps1)
 - [Release 说明、blockmap 与 SHA256 校验文件](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.7)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\download_desktop_release.ps1 -RunInstaller
+```
 
 安装后可以选择**服务器端模式**打开已部署的 Harness 工作区，也可以选择**本地模式**自动解压并启动安装包内置运行时。模型 provider 与 API Key 仍在 Harness 设置界面中配置。
 

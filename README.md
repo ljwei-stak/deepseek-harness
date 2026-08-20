@@ -71,10 +71,14 @@ The system displays the scoring inputs, assignments, costs, stage reports, and o
 
 ### Windows desktop application
 
-Download the one-click installer from the project release:
+Download the one-click installer from the project release. GitHub publishes the 574 MiB installer as short parts so the download remains reliable on long-running connections. Run the downloader on Windows; it combines the parts and verifies the original installer SHA256 automatically:
 
-- [DeepSeek Harness Model Router + GALGame 0.4.7 for Windows x64](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.7/DeepSeek-Harness-ModelRouter-GALGame-Setup-0.4.7-Windows-x64.exe)
+- [Download and verify script](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.7/download_desktop_release.ps1)
 - [Release notes, blockmap, and SHA256 checksum](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.7)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\download_desktop_release.ps1 -RunInstaller
+```
 
 After installation, choose **server mode** to open the hosted Harness workspace or **local mode** to unpack and start the bundled runtime. Model providers and API keys remain configurable through the Harness settings interface.
 
