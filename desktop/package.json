@@ -1,0 +1,25 @@
+{
+  "name": "deepseek-harness-desktop",
+  "version": "0.4.7",
+  "private": true,
+  "description": "DeepSeek Harness desktop client with Model Router + GALGame plugin",
+  "main": "harness-main.js",
+  "scripts": {
+    "prestart": "npm --prefix ../apps/web run build",
+    "start": "electron .",
+    "test:e2e": "playwright test",
+    "pack": "electron-builder --dir",
+    "dist:harness:win": "electron-builder --config harness-builder.yml --win nsis"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.0",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "cn.deepseek.harness.desktop",
+    "productName": "DeepSeek Harness",
+    "asar": true,
+    "directories": { "output": "dist" }
+  }
+}

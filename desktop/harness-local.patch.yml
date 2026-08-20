@@ -1,0 +1,12 @@
+# Desktop-local sessions use the deterministic title fallback. Calling the
+# selected model again for a title races the real first answer and can exhaust
+# single-concurrency or free-tier OpenCode Zen routes.
+- id: session-title-llm
+  disabled: true
+
+# Mount the installable Model Router + GALGame plugin in the local Web profile.
+# The package is shipped in the runtime's top-level node_modules so the normal
+# Harness bundle resolver can load both its Host and browser faces.
+- insert:
+    - id: model-router-galgame
+      name: model-router-galgame

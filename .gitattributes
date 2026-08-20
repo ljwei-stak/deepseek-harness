@@ -8,6 +8,10 @@
 
 *.pdf binary
 
+# The GAL client bundle is generated and can contain whitespace copied from
+# bundled third-party grammars. Exclude it from whitespace-only diff checks.
+plugins/model-router-galgame/.dsh-plugin/client.js -whitespace
+
 # Pairing records are generated from the three confirmed owner-blob pairs.
 # The worktree-local installer registers the fail-closed driver command.
 *.i18n.yaml merge=dsh-translation-pairing

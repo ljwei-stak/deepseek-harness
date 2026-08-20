@@ -38,4 +38,12 @@ apps/web/dist/
 .worktrees/
 worktrees/
 .agents/worktrees/
+
+# Local runtime and desktop packaging output. The runtime archive and installers
+# are published as release assets rather than stored in Git history.
+/build/
+/desktop/node_modules/
+/desktop/dist/
+/desktop/test-results/
+/desktop/playwright-report/
 .typert-*/

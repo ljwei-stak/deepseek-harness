@@ -1,0 +1,33 @@
+appId: cn.deepseek.harness.desktop
+productName: DeepSeek Harness
+asar: true
+electronDist: node_modules/electron/dist
+extraMetadata:
+  main: harness-main.js
+  version: 0.4.7
+directories:
+  output: dist
+files:
+  - harness-main.js
+  - harness-preload.js
+  - package.json
+  - assets/**/*
+extraResources:
+  - from: ../build/harness-runtime.tar.gz
+    to: harness-runtime.tar.gz
+  - from: ../build/harness-node
+    to: harness-node
+  - from: harness-local.patch.yml
+    to: harness-local.patch.yml
+win:
+  icon: assets/app-icon.png
+  target:
+    - nsis
+  artifactName: DeepSeek-Harness-ModelRouter-GALGame-Setup-${version}-Windows-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DeepSeek Harness
+  deleteAppDataOnUninstall: false
