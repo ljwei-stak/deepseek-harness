@@ -20,7 +20,12 @@ for ($index = 1; $index -le $partCount; $index++) {
   $partUrl = "$baseUrl/$partName"
   if (-not (Test-Path -LiteralPath $partPath)) {
     Write-Host "Downloading $partName ..."
-    & curl.exe --proxy "" --fail --location --retry 3 --retry-delay 3 --connect-timeout 30 --output $partPath $partUrl
+    $curlArgs = @('--fail', '--location', '--retry', '3', '--retry-delay', '3', '--connect-timeout', '30', '--output', $partPath)
+    & curl.exe @curlArgs $partUrl
+    if ($LASTEXITCODE -ne 0 -and ($env:HTTP_PROXY -or $env:HTTPS_PROXY)) {
+      Write-Host 'Proxy download failed; retrying without a proxy ...'
+      & curl.exe --proxy "" @curlArgs $partUrl
+    }
     if ($LASTEXITCODE -ne 0) { throw "Failed to download $partName." }
   }
 }
