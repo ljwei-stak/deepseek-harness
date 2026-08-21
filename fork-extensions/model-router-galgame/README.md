@@ -1,6 +1,6 @@
 # Model Router + GALGame fork extension
 
-English | [Chinese](README.zh.md)
+English | [中文](README.zh.md)
 
 This directory is the conflict-resistant entry point for the Model Router + GALGame distribution maintained by [`ljwei-stak/deepseek-harness`](https://github.com/ljwei-stak/deepseek-harness). The repository root README follows upstream DeepSeek Harness unchanged so routine fork synchronization does not collide with product documentation.
 

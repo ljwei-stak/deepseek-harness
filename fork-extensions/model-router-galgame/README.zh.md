@@ -21,7 +21,7 @@
 
 | 路径 | 用途 |
 | --- | --- |
-| [`plugins/model-router-galgame`](../../plugins/model-router-galgame/README.md) | 可独立安装的路由器、协作编排、GAL 客户端、人物素材和专项测试 |
+| [`plugins/model-router-galgame`](../../plugins/model-router-galgame/README.zh.md) | 可独立安装的路由器、协作编排、GAL 客户端、人物素材和专项测试 |
 | [`desktop`](../../desktop) | Electron 启动器、服务器端/本地模式选择、打包、原生更新器和桌面端测试 |
 | [`scripts/build_harness_runtime.ps1`](../../scripts/build_harness_runtime.ps1) | 构建可独立运行的本地 Harness 运行时 |
 | [`scripts/build_desktop.ps1`](../../scripts/build_desktop.ps1) | 构建 Windows 安装包 |
