@@ -28,6 +28,8 @@ dsh plugin --profile web add <plugin-directory>
 
 Restart Harness after installation. If no model is available, native model selection remains intact and the conversation is not blocked.
 
+See the [native installation tutorial](../../docs/cookbook/model-router-galgame-installation.md) for the complete setup, provider configuration, desktop, update, and troubleshooting procedure.
+
 ## Commands
 
 - `/router mode collective`
@@ -50,6 +52,8 @@ U(i,m) = wq(c) Q(i,m) + wc(c) C(m) + wl(c) (1 - L(m))
 ```
 
 `F(i)` is the quality floor. Candidates satisfying `Q(i,m) >= F(i)` form the feasible set. A budget `B` is a secondary hard constraint: if the first utility assignment exceeds `B`, lower-criticality stages are replaced by the cheapest feasible candidates until the budget is met or no valid replacement remains. Synthesis prefers DeepSeek V4 Pro and falls back deterministically when unavailable.
+
+The algorithm is wired into the Host request path: `index.mjs` calls `buildPlan` in collective mode and executes the planned stages; single-session mode preserves the explicitly selected model instead of applying the collective override. `router.test.mjs` covers complexity, mixed-domain decomposition, LiveBench and price overrides, and budget fallback; `collaboration.test.mjs` covers multi-stage execution and final synthesis.
 
 With user prices `p_in(m), p_out(m)` and estimated token counts:
 

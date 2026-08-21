@@ -28,6 +28,8 @@ dsh plugin --profile web add <plugin-directory>
 
 重启 Harness 后即可使用。没有可用模型时插件保留原生选择，不阻塞对话。
 
+完整的原生安装、配置、桌面端、更新和故障排查步骤见[安装操作说明](../../docs/cookbook/model-router-galgame-installation.zh.md)。
+
 ## 命令
 
 - `/router mode collective`
@@ -50,6 +52,8 @@ U(i,m) = wq(c) Q(i,m) + wc(c) C(m) + wl(c) (1 - L(m))
 ```
 
 其中 `F(i)` 是工作包质量下限；只有满足 `Q(i,m) >= F(i)` 的候选才优先进入可行集合。复杂任务还设置预算 `B`，若初始效用分配超预算，算法按关键度从低到高尝试替换为更便宜且仍满足质量下限的模型。最终汇总阶段默认优先 DeepSeek V4 Pro，若不可用则按候选排序回退。
+
+该算法已经接入 Host 请求路径：`index.mjs` 在集体模式调用 `buildPlan`，并按计划执行各阶段；单独模式保留用户指定模型，不经过集体路由覆盖。`router.test.mjs` 覆盖复杂度、混合业务拆分、LiveBench 与价格覆盖及预算回退，`collaboration.test.mjs` 覆盖多阶段执行和最终整合。
 
 阶段费用使用用户价格 `p_in(m), p_out(m)` 和 token 估计：
 
