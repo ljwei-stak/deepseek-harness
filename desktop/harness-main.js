@@ -1,18 +1,23 @@
-const { app, BrowserWindow, ipcMain, nativeImage, shell } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const net = require('node:net')
 const path = require('node:path')
+const updater = require('./harness-updater')
 
 const DEFAULT_REMOTE_ORIGIN = process.env.DEEPSEEK_HARNESS_REMOTE_ORIGIN || 'https://www.jianweilimarx.top'
 const DEFAULT_REMOTE_PATH = process.env.DEEPSEEK_HARNESS_REMOTE_PATH || '/harness/'
 const CONFIG_FILENAME = 'deepseek-harness-client.json'
-const LOCAL_RUNTIME_VERSION = '0.4.7'
+const LOCAL_RUNTIME_VERSION = '0.4.8'
+const PLUGIN_VERSION = '0.4.8'
+const RELEASE_CACHE_MS = 5 * 60_000
 const RETRYABLE_FILESYSTEM_ERRORS = new Set(['EACCES', 'EBUSY', 'ENOTEMPTY', 'EPERM'])
 
 let mainWindow = null
 let currentConfig = null
 let localHarnessProcess = null
+let releaseCache = null
+let updateOperation = null
 
 if (process.env.DEEPSEEK_HARNESS_USER_DATA_DIR) {
   fs.mkdirSync(process.env.DEEPSEEK_HARNESS_USER_DATA_DIR, { recursive: true })
@@ -154,14 +159,15 @@ function validateExtractedRuntime(root) {
  * used instead of a junction: this also works on Windows installations where
  * the user has not enabled developer mode.
  */
-function installBundledPlugin(runtimeRoot, home) {
-  const source = path.join(runtimeRoot, 'node_modules', 'model-router-galgame')
-  const target = path.join(home, 'profiles', 'node_modules', 'model-router-galgame')
-  if (!fs.existsSync(path.join(source, 'package.json'))) {
-    throw new Error('安装包缺少 Model Router + GALGame 插件')
-  }
-  fs.mkdirSync(path.dirname(target), { recursive: true })
-  fs.cpSync(source, target, { recursive: true, force: true })
+async function installEffectivePlugin(runtimeRoot, home) {
+  const source = updater.selectPluginSource(
+    runtimeRoot,
+    app.getPath('userData'),
+    LOCAL_RUNTIME_VERSION,
+    PLUGIN_VERSION,
+  )
+  const target = await updater.syncPluginToProfile(source, home)
+  debugLog(`Using ${source.source} Model Router plugin ${source.version}: ${source.directory}`)
   return target
 }
 
@@ -371,7 +377,7 @@ async function startLocalHarness() {
 
   const home = path.join(app.getPath('userData'), 'harness-home')
   fs.mkdirSync(home, { recursive: true })
-  installBundledPlugin(runtimeRoot, home)
+  await installEffectivePlugin(runtimeRoot, home)
   const patch = localPatchPath()
   // The web command passes unknown options through to the web app. Keep the
   // launcher-owned patch option before --port so it is consumed by dsh.
@@ -404,10 +410,20 @@ async function startLocalHarness() {
   return endpoint
 }
 
-function stopLocalHarness() {
+async function stopLocalHarness() {
   const child = localHarnessProcess
   localHarnessProcess = null
   if (!child || child.exitCode !== null) return
+  const exited = new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      debugLog(`Local Harness did not exit within 10 seconds: pid=${child.pid ?? 'unknown'}`)
+      resolve()
+    }, 10_000)
+    child.once('exit', () => {
+      clearTimeout(timeout)
+      resolve()
+    })
+  })
   child.kill()
   if (process.platform === 'win32' && child.pid) {
     const terminator = spawn('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], {
@@ -416,6 +432,144 @@ function stopLocalHarness() {
     })
     terminator.unref()
   }
+  await exited
+}
+
+function currentUpdateVersions() {
+  return {
+    pluginVersion: updater.effectivePluginVersion(
+      app.getPath('userData'),
+      PLUGIN_VERSION,
+      LOCAL_RUNTIME_VERSION,
+    ),
+    desktopVersion: app.getVersion(),
+    runtimeVersion: LOCAL_RUNTIME_VERSION,
+  }
+}
+
+async function latestRelease(force = false) {
+  if (!force && releaseCache !== null && Date.now() - releaseCache.checkedAt < RELEASE_CACHE_MS) {
+    return releaseCache.bundle
+  }
+  const bundle = await updater.fetchLatestRelease()
+  releaseCache = { checkedAt: Date.now(), bundle }
+  return bundle
+}
+
+function publishUpdateProgress(kind, progress) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('harness-update:progress', { kind, ...progress })
+}
+
+async function exclusiveUpdate(kind, operation) {
+  if (updateOperation !== null) throw new Error(`正在${updateOperation === 'plugin' ? '更新插件' : '更新完整客户端'}，请等待当前操作完成`)
+  updateOperation = kind
+  try {
+    return await operation()
+  } finally {
+    updateOperation = null
+  }
+}
+
+async function restartLocalWorkspaceAfterPluginUpdate() {
+  try {
+    await stopLocalHarness()
+    currentConfig = { endpoint: 'http://127.0.0.1:0', local: true, mode: 'local' }
+    currentConfig.endpoint = await startLocalHarness()
+    writeConfig(currentConfig)
+    await loadWorkspace()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    debugLog(`Plugin update restart failed: ${message}`)
+    await showConnectionPage(`插件已更新，但本地服务重启失败：${message}`)
+  }
+}
+
+async function installPluginUpdate() {
+  const confirmation = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['更新插件', '取消'],
+    defaultId: 0,
+    cancelId: 1,
+    title: '更新 Model Router + GALGame',
+    message: '从 ljwei-stak/deepseek-harness 下载并安装最新版插件？',
+    detail: '下载内容会经过 SHA256 与兼容性校验。当前插件版本会保留，更新失败不会替换正在使用的版本。',
+    noLink: true,
+  })
+  if (confirmation.response !== 0) return { cancelled: true }
+  return exclusiveUpdate('plugin', async () => {
+    const bundle = await latestRelease(true)
+    const versions = currentUpdateVersions()
+    const status = updater.assessUpdates(bundle, versions)
+    if (!status.plugin.available) throw new Error(status.plugin.reason || '插件已是最新版')
+    if (!status.plugin.installable) throw new Error(status.plugin.reason || '该插件版本与当前客户端不兼容')
+    const directory = path.join(app.getPath('userData'), 'updates', bundle.release.version, 'plugin')
+    publishUpdateProgress('plugin', { phase: 'start', percent: 0, message: '正在下载插件更新...' })
+    const prepared = await updater.preparePluginArchive(bundle, directory, {
+      onProgress: progress => publishUpdateProgress('plugin', progress),
+    })
+    const installed = await updater.installPluginArchive(
+      prepared.filename,
+      prepared.descriptor,
+      app.getPath('userData'),
+      versions,
+    )
+    publishUpdateProgress('plugin', { phase: 'done', percent: 100, version: installed.version, message: `插件 ${installed.version} 已安装` })
+    const restartScheduled = currentConfig?.mode === 'local'
+    if (restartScheduled) setTimeout(() => { void restartLocalWorkspaceAfterPluginUpdate() }, 750)
+    return {
+      version: installed.version,
+      restartScheduled,
+      message: restartScheduled
+        ? '插件已更新，正在重启本地工作台...'
+        : '本地插件已更新；下次进入本地模式时生效。服务器端插件由服务器部署版本决定。',
+    }
+  })
+}
+
+function launchInstaller(filename) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(filename, [], {
+      detached: true,
+      windowsHide: false,
+      stdio: 'ignore',
+    })
+    child.once('error', reject)
+    child.once('spawn', () => {
+      child.unref()
+      resolve()
+    })
+  })
+}
+
+async function installDesktopUpdate() {
+  if (process.platform !== 'win32') throw new Error('一键安装完整客户端目前仅支持 Windows')
+  const confirmation = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['下载并安装', '取消'],
+    defaultId: 0,
+    cancelId: 1,
+    title: '更新 DeepSeek Harness',
+    message: '下载并安装最新版完整客户端？',
+    detail: '安装包可能较大。所有分片合并并通过 SHA256 校验后才会启动安装程序，用户配置和历史任务保留在用户目录。',
+    noLink: true,
+  })
+  if (confirmation.response !== 0) return { cancelled: true }
+  return exclusiveUpdate('desktop', async () => {
+    const bundle = await latestRelease(true)
+    const status = updater.assessUpdates(bundle, currentUpdateVersions())
+    if (!status.desktop.available) throw new Error(status.desktop.reason || '完整客户端已是最新版')
+    if (!status.desktop.installable) throw new Error(status.desktop.reason || '该 Release 没有可安装的客户端')
+    const directory = path.join(app.getPath('userData'), 'updates', bundle.release.version, 'desktop')
+    publishUpdateProgress('desktop', { phase: 'start', percent: 0, message: '正在下载完整客户端...' })
+    const prepared = await updater.prepareDesktopInstaller(bundle, directory, {
+      onProgress: progress => publishUpdateProgress('desktop', progress),
+    })
+    await launchInstaller(prepared.filename)
+    publishUpdateProgress('desktop', { phase: 'done', percent: 100, version: prepared.descriptor.version, message: '安装程序已启动' })
+    setTimeout(() => app.quit(), 1200)
+    return { version: prepared.descriptor.version, message: '安装程序已启动，当前客户端将退出。' }
+  })
 }
 
 function connectionPage(errorMessage = '') {
@@ -590,7 +744,7 @@ function registerHandlers() {
         throw error
       }
     } else {
-      stopLocalHarness()
+      await stopLocalHarness()
       currentConfig = { endpoint: DEFAULT_REMOTE_ORIGIN, local: false, mode: 'server' }
       writeConfig(currentConfig)
       await loadWorkspace()
@@ -598,6 +752,10 @@ function registerHandlers() {
     return currentConfig
   })
   ipcMain.handle('harness-connection:retry', () => loadWorkspace())
+  ipcMain.handle('harness-update:check', async () => updater.assessUpdates(await latestRelease(true), currentUpdateVersions()))
+  ipcMain.handle('harness-update:install-plugin', () => installPluginUpdate())
+  ipcMain.handle('harness-update:install-desktop', () => installDesktopUpdate())
+  ipcMain.handle('harness-update:open-project', () => shell.openExternal(updater.PROJECT_URL))
 }
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
@@ -618,5 +776,5 @@ if (!gotSingleInstanceLock) {
     }
   })
   app.on('window-all-closed', () => app.quit())
-  app.on('before-quit', () => stopLocalHarness())
+  app.on('before-quit', () => { void stopLocalHarness() })
 }

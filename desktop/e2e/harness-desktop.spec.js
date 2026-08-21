@@ -4,7 +4,7 @@ const net = require('node:net')
 const path = require('node:path')
 const { _electron: electron, expect, test } = require('@playwright/test')
 
-const HARNESS_RUNTIME_VERSION = '0.4.7'
+const HARNESS_RUNTIME_VERSION = '0.4.8'
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -69,6 +69,9 @@ test('Harness desktop starts the bundled local runtime with one choice', async (
     localPort = Number(new URL(window.url()).port)
     expect(localPort).toBeGreaterThan(0)
     expect(await window.evaluate(() => window.deepSeekHarnessDesktop?.isDesktop)).toBe(true)
+    expect(await window.evaluate(() => typeof window.deepSeekHarnessDesktop?.checkForUpdates)).toBe('function')
+    expect(await window.evaluate(() => typeof window.deepSeekHarnessDesktop?.installPluginUpdate)).toBe('function')
+    expect(await window.evaluate(() => typeof window.deepSeekHarnessDesktop?.installDesktopUpdate)).toBe('function')
   } finally {
     await electronApp.close()
   }

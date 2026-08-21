@@ -29,6 +29,32 @@ import presetScene from '../../gal-scene.json'
 
 export const name = 'gal-view'
 
+const PROJECT_URL = 'https://github.com/ljwei-stak/deepseek-harness'
+const RELEASES_URL = `${PROJECT_URL}/releases`
+const PLUGIN_VERSION = '0.4.8'
+
+function createUpdateApi() {
+  const bridge = globalThis.deepSeekHarnessDesktop
+  const openExternal = url => {
+    if (bridge?.openProject && url === PROJECT_URL) return bridge.openProject()
+    globalThis.open?.(url, '_blank', 'noopener,noreferrer')
+    return Promise.resolve()
+  }
+  return {
+    isDesktop: bridge?.isDesktop === true,
+    platform: bridge?.platform ?? 'web',
+    pluginVersion: PLUGIN_VERSION,
+    projectUrl: PROJECT_URL,
+    releasesUrl: RELEASES_URL,
+    check: bridge?.checkForUpdates ? () => bridge.checkForUpdates() : null,
+    installPlugin: bridge?.installPluginUpdate ? () => bridge.installPluginUpdate() : null,
+    installDesktop: bridge?.installDesktopUpdate ? () => bridge.installDesktopUpdate() : null,
+    subscribe: bridge?.onUpdateProgress ? callback => bridge.onUpdateProgress(callback) : null,
+    openProject: () => openExternal(PROJECT_URL),
+    openReleases: () => openExternal(RELEASES_URL),
+  }
+}
+
 /** 依赖服务：槽位系统（会话数据经槽位框架注入，无需直接消费 sessions）。 */
 export const inject = ['slots', 'sessions', 'modelDirectories', 'conversation']
 
@@ -655,6 +681,7 @@ export function apply(ctx) {
     inject: () => ({
       hooks: { enabled: enabledSource },
       setEnabled,
+      updateApi: createUpdateApi(),
     }),
   }, GalViewSettingsTab))
 }

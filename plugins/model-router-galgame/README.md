@@ -18,6 +18,7 @@ This plugin package can be installed on an original DeepSeek Harness checkout. I
 - Images use the native multimodal pipeline, text-like files are extracted, and binary documents keep a visible parsing status.
 - GAL dialogue and log typography are enlarged while retaining the native Markdown/KaTeX renderer.
 - The persona layer affects final wording only and is excluded from routing, decomposition, tools, and engineering execution.
+- The plugin settings page checks the fixed project Release channel and exposes separate actions for a rollback-safe plugin update and a SHA256-verified full desktop update. Browser-only installations open the Releases page because they cannot modify local files.
 
 ## Installation
 
@@ -58,4 +59,4 @@ The GAL interaction is inspired by [`Ayase34/gal-view`](https://github.com/Ayase
 
 ## Desktop application
 
-The root `desktop/` directory provides server/local mode selection and Windows packaging. Built installers are published through the [Model Router + GALGame 0.4.7 release](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.7), while Git retains source and reproducible build configuration.
+The root `desktop/` directory provides server/local mode selection and Windows packaging. Built installers and standalone plugin archives are published through the [Model Router + GALGame 0.4.8 release](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.8), while Git retains source and reproducible build configuration.

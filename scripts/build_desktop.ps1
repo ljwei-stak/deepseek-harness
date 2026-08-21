@@ -5,6 +5,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $desktopRoot = Join-Path $projectRoot 'desktop'
+$pluginRoot = Join-Path $projectRoot 'plugins\model-router-galgame'
+
+& npm.cmd --prefix $pluginRoot run build:client
+if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to build the Model Router client bundle.'
+}
 
 & (Join-Path $PSScriptRoot 'build_harness_runtime.ps1') -NodeExecutable $NodeExecutable
 
@@ -29,3 +35,9 @@ if ($null -eq $installer) {
     throw 'The desktop build completed without producing an installer.'
 }
 Write-Host "Desktop installer: $($installer.FullName)"
+
+$version = [string]((Get-Content -Raw (Join-Path $desktopRoot 'package.json') | ConvertFrom-Json).version)
+& (Join-Path $PSScriptRoot 'build_update_assets.ps1') -Version $version
+if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to build updater release assets.'
+}

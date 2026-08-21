@@ -6,7 +6,7 @@
 
 项目继续兼容 Harness 的插件架构。完整功能也可以作为独立的 [`model-router-galgame`](plugins/model-router-galgame/README.md) 插件，安装到原版 DeepSeek Harness 中使用。
 
-> 当前插件与桌面端版本：`0.4.7`。DeepSeek Harness 仍处于开发者预览阶段，后续可能出现破坏兼容性的变更。
+> 当前插件与桌面端版本：`0.4.8`。DeepSeek Harness 仍处于开发者预览阶段，后续可能出现破坏兼容性的变更。
 
 ## 界面预览
 
@@ -73,14 +73,16 @@ U(m | x) = wq(c) Qm + wc(c) Cm + wl(c) (1 - Lm)
 
 从项目 Release 下载一键安装包。由于安装包约 574 MiB，GitHub Release 将其拆成较短的分片以避免长连接中断；在 Windows 上运行下载脚本即可自动合并并核验原始安装包的 SHA256：
 
-- [下载并核验脚本](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.7/download_desktop_release.ps1)
-- [Release 说明、blockmap 与 SHA256 校验文件](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.7)
+- [下载并核验脚本](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.8/download_desktop_release.ps1)
+- [Release 说明、插件包、blockmap 与 SHA256 校验文件](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.8)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\download_desktop_release.ps1 -RunInstaller
 ```
 
 安装后可以选择**服务器端模式**打开已部署的 Harness 工作区，也可以选择**本地模式**自动解压并启动安装包内置运行时。模型 provider 与 API Key 仍在 Harness 设置界面中配置。
+
+在**设置 → 插件 → GAL 视窗 → 项目更新**中，可以检查固定的 [`ljwei-stak/deepseek-harness`](https://github.com/ljwei-stak/deepseek-harness) Release 更新源。**更新插件**会下载独立版本的插件包，依次核验 SHA256、目录结构和最低客户端/运行时版本，再通过用户目录中的版本指针安全启用，并保留旧版本用于回退。**更新完整客户端**会续用已下载的 Release 分片，合并并核验安装包，经过确认后启动系统安装程序。API Key、provider 设置、历史会话和插件回退版本都保留在用户数据目录中。纯网页环境不能写本机文件，因此会跳转到 Releases 页面。
 
 ### 安装到原版 Harness
 
@@ -114,6 +116,8 @@ Web UI 默认运行在 `http://127.0.0.1:3080`，本机启动时会用默认浏�
 powershell -ExecutionPolicy Bypass -File scripts/build_desktop.ps1
 ```
 
+桌面构建还会执行 `scripts/build_update_assets.ps1`，将独立插件包、客户端分片、更新清单、下载脚本和 `SHA256SUMS.txt` 写入 `build/release/<version>/`，供同一个 GitHub Release 上传。
+
 本地运行时压缩包、安装包、解包后的应用和桌面端测试输出不会提交到 Git，而是作为 Release 资产发布。
 
 ## 项目结构
@@ -124,6 +128,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build_desktop.ps1
 | `desktop/` | Electron 启动器、服务器端/本地模式选择、打包配置和桌面端 E2E 测试 |
 | `scripts/build_harness_runtime.ps1` | 构建可独立运行的本地 Harness 运行时压缩包 |
 | `scripts/build_desktop.ps1` | 构建 Windows 安装包 |
+| `scripts/build_update_assets.ps1` | 生成插件/客户端更新清单、归档、分片和校验文件 |
 | `docs/images/model-router-galgame/` | 可在 GitHub README 中展示的运行截图 |
 
 DeepSeek Harness 采用**一切皆插件**的架构，并由 [Cordis](https://github.com/cordiverse/cordis) 驱动，设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://github.com/cordiverse/paper)。原项目开发资料见[开发指南](docs/development.md)、[架构文档](docs/architecture.md)和[贡献指南](CONTRIBUTING.md)。

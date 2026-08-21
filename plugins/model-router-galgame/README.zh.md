@@ -18,6 +18,7 @@
 - 附件输入：PNG/JPEG/WEBP/GIF 走原生多模态图片管线；Markdown、TXT、JSON 和代码文件自动提取为消息文本；PDF/DOCX 等二进制文件会显示解析提示。
 - 对话可读性：GAL 对话正文与日志字号已提升，仍复用 Harness 原生 Markdown/KaTeX 渲染器。
 - GAL persona 表达层：根据实际 provider/model 映射到人物设定，只在最终答复前调整称呼、措辞和节奏。人物设定不会进入路由评分、复杂度判断、任务拆分、工具调用或工程执行；高风险任务自动降低戏剧化表达，并保留事实、推断和待验证边界。
+- 项目更新：插件设置页检查固定的项目 Release 更新源，分别提供可回退的插件更新和经过 SHA256 核验的完整桌面端更新。纯网页安装不能修改本机文件，因此会打开 Releases 页面。
 
 ## 安装
 
@@ -58,4 +59,4 @@ GAL 交互方式参考 [`Ayase34/gal-view`](https://github.com/Ayase34/gal-view)
 
 ## 桌面端
 
-仓库根目录的 `desktop/` 提供服务器端/本地运行模式切换和 Windows 打包配置。已构建的安装包通过 [Model Router + GALGame 0.4.7 Release](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.7) 发布；源码仓库只保留构建脚本和可复现的插件资源。
+仓库根目录的 `desktop/` 提供服务器端/本地运行模式切换和 Windows 打包配置。已构建的安装包与独立插件包通过 [Model Router + GALGame 0.4.8 Release](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.8) 发布；源码仓库只保留构建脚本和可复现的插件资源。

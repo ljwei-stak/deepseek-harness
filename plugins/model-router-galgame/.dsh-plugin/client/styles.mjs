@@ -693,6 +693,30 @@ export const CSS = `
 .gvsv-label { font-size: 13px; font-weight: 600; }
 .gvsv-hint { flex: 1; font-size: 11px; opacity: .6; line-height: 1.6; }
 .gvsv-row input[type="checkbox"] { accent-color: #8f7bff; width: 16px; height: 16px; }
+.gvsv-update { padding: 13px 14px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 4px; }
+.gvsv-update-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.gvsv-update-head h3 { margin: 0; font-size: 14px; letter-spacing: 0; }
+.gvsv-update-head p { margin: 5px 0 0; max-width: 720px; font-size: 11px; line-height: 1.65; opacity: .65; }
+.gvsv-update button { min-height: 32px; padding: 4px 12px; border: 1px solid rgba(143, 123, 255, .5); border-radius: 4px; background: rgba(143, 123, 255, .1); color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.gvsv-update button:hover:not(:disabled) { border-color: rgba(79, 140, 255, .75); background: rgba(79, 140, 255, .14); }
+.gvsv-update button:disabled { cursor: wait; opacity: .48; }
+.gvsv-update button.gvsv-link, .gvsv-update button.gvsv-secondary { border-color: rgba(255, 255, 255, .18); background: transparent; }
+.gvsv-version-list { display: grid; gap: 8px; margin-top: 13px; }
+.gvsv-version-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; padding: 10px 11px; background: rgba(255, 255, 255, .035); }
+.gvsv-version-row > div { display: grid; min-width: 0; gap: 3px; }
+.gvsv-version-row strong { font-size: 12px; }
+.gvsv-version-row span { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .8; }
+.gvsv-version-row small { overflow-wrap: anywhere; font-size: 10px; line-height: 1.5; opacity: .58; }
+.gvsv-version-row button { flex: none; min-width: 112px; }
+.gvsv-progress { height: 5px; margin-top: 12px; overflow: hidden; background: rgba(255, 255, 255, .09); }
+.gvsv-progress span { display: block; height: 100%; background: linear-gradient(90deg, #4f8cff, #8f7bff); transition: width .18s ease; }
+.gvsv-notice { margin: 10px 0 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.gvsv-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.gvsv-footnote { margin: 9px 0 0; font-size: 10px; line-height: 1.6; opacity: .58; }
+@media (max-width: 680px) {
+  .gvsv-update-head, .gvsv-version-row { align-items: stretch; flex-direction: column; }
+  .gvsv-update-head .gvsv-link, .gvsv-version-row button { width: 100%; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   [data-gal-view] .gv-el-character .gv-char { animation: none; }

@@ -4,12 +4,13 @@ asar: true
 electronDist: node_modules/electron/dist
 extraMetadata:
   main: harness-main.js
-  version: 0.4.7
+  version: 0.4.8
 directories:
   output: dist
 files:
   - harness-main.js
   - harness-preload.js
+  - harness-updater.js
   - package.json
   - assets/**/*
 extraResources:

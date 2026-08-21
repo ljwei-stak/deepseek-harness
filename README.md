@@ -6,7 +6,7 @@ An enhanced distribution of [DeepSeek Harness](https://github.com/deepseek-ai/de
 
 The project remains compatible with the Harness plugin architecture. The complete feature can also be installed as the standalone [`model-router-galgame`](plugins/model-router-galgame/README.md) plugin on an original DeepSeek Harness checkout.
 
-> Current plugin and desktop version: `0.4.7`. DeepSeek Harness is still a developer preview and may introduce compatibility-breaking changes.
+> Current plugin and desktop version: `0.4.8`. DeepSeek Harness is still a developer preview and may introduce compatibility-breaking changes.
 
 ## Preview
 
@@ -73,14 +73,16 @@ The system displays the scoring inputs, assignments, costs, stage reports, and o
 
 Download the one-click installer from the project release. GitHub publishes the 574 MiB installer as short parts so the download remains reliable on long-running connections. Run the downloader on Windows; it combines the parts and verifies the original installer SHA256 automatically:
 
-- [Download and verify script](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.7/download_desktop_release.ps1)
-- [Release notes, blockmap, and SHA256 checksum](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.7)
+- [Download and verify script](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.8/download_desktop_release.ps1)
+- [Release notes, plugin archive, blockmap, and SHA256 checksums](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.8)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\download_desktop_release.ps1 -RunInstaller
 ```
 
 After installation, choose **server mode** to open the hosted Harness workspace or **local mode** to unpack and start the bundled runtime. Model providers and API keys remain configurable through the Harness settings interface.
+
+Open **Settings → Plugins → GAL View → Project updates** to check the fixed [`ljwei-stak/deepseek-harness`](https://github.com/ljwei-stak/deepseek-harness) release channel. **Update plugin** downloads an independently versioned plugin archive, validates its SHA256, structure, and minimum client/runtime versions, then activates it through a rollback-safe per-user version pointer. **Update full client** resumes the release parts, reconstructs and validates the installer, and starts the native installer after confirmation. API keys, provider settings, sessions, and plugin rollback versions stay in the user data directory. A browser-only deployment cannot write local files and opens the Releases page instead.
 
 ### Install the plugin on original Harness
 
@@ -114,6 +116,8 @@ To rebuild the Windows installer after the Web and Host packages have been built
 powershell -ExecutionPolicy Bypass -File scripts/build_desktop.ps1
 ```
 
+The desktop build also runs `scripts/build_update_assets.ps1`, which writes the independent plugin archive, installer parts, update manifest, downloader, and `SHA256SUMS.txt` into `build/release/<version>/` for upload to one GitHub Release.
+
 Generated runtime archives, installers, unpacked applications, and desktop test output are intentionally excluded from Git and published as release artifacts.
 
 ## Project structure
@@ -124,6 +128,7 @@ Generated runtime archives, installers, unpacked applications, and desktop test 
 | `desktop/` | Electron launcher, server/local selection, packaging configuration, and desktop E2E tests |
 | `scripts/build_harness_runtime.ps1` | Builds the self-contained local Harness runtime archive |
 | `scripts/build_desktop.ps1` | Builds the Windows installer |
+| `scripts/build_update_assets.ps1` | Builds the plugin/client update manifest, archives, parts, and checksums |
 | `docs/images/model-router-galgame/` | Repository-safe demonstration screenshots |
 
 DeepSeek Harness uses an **everything is a plugin** architecture powered by [Cordis](https://github.com/cordiverse/cordis). Its design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://github.com/cordiverse/paper). For upstream development details, see the [development guide](docs/development.md), [architecture documentation](docs/architecture.md), and [contribution guide](CONTRIBUTING.md).
