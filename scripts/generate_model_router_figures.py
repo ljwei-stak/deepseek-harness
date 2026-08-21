@@ -17,6 +17,8 @@ import seaborn as sns
 
 
 REFERENCE_DATE = "2026-08-22"
+# Fixed illustrative rate for comparable plots. Source prices remain in the
+# reference currency; only derived figure columns use this conversion.
 USD_TO_CNY = 7.2
 
 
@@ -46,6 +48,14 @@ def price_rows() -> pd.DataFrame:
         ("GPT 5.6 Sol", "GPT", "USD", 5.0, 30.0, 0.5, "≤272K"),
         ("GPT 5.6 Terra", "GPT", "USD", 2.0, 12.0, 0.2, "≤272K"),
         ("GPT 5.6 Luna", "GPT", "USD", 0.2, 1.2, 0.02, "≤272K"),
+        ("Grok 4.6", "Grok", "USD", 2.0, 6.0, 0.5, "标准区间；500K context"),
+        ("Grok 4.6 (long)", "Grok", "USD", 4.0, 12.0, 1.0, "长上下文≥200K；500K context"),
+        ("Grok Build 0.1", "Grok", "USD", 1.0, 2.0, 0.2, "标准区间；256K context"),
+        ("Grok Build 0.1 (long)", "Grok", "USD", 2.0, 4.0, 0.4, "长上下文≥200K；256K context"),
+        ("Grok 4.5", "Grok", "USD", 2.0, 6.0, 0.3, "标准区间；500K context"),
+        ("Grok 4.5 (long)", "Grok", "USD", 4.0, 12.0, 0.6, "长上下文≥200K；500K context"),
+        ("Grok 4.3", "Grok", "USD", 1.25, 2.5, 0.2, "标准区间；1M context"),
+        ("Grok 4.3 (long)", "Grok", "USD", 2.5, 5.0, 0.4, "长上下文≥200K；1M context"),
     ]
     return pd.DataFrame(rows, columns=["model", "family", "currency", "input", "output", "cache_read", "note"])
 
@@ -64,6 +74,15 @@ def save(fig: plt.Figure, output_dir: Path, name: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_dir / name, dpi=220, bbox_inches="tight", facecolor="white")
     plt.close(fig)
+
+
+def add_cny_prices(prices: pd.DataFrame) -> pd.DataFrame:
+    """Add comparable CNY columns while preserving source-currency columns."""
+    converted = prices.copy()
+    converted["exchange_rate"] = converted.currency.map({"CNY": 1.0, "USD": USD_TO_CNY})
+    for field in ["input", "output", "cache_read"]:
+        converted[f"{field}_cny"] = converted[field] * converted["exchange_rate"]
+    return converted
 
 
 def flow_figure(output_dir: Path) -> None:
@@ -124,68 +143,65 @@ def objective_figure(output_dir: Path) -> None:
 
 
 def price_scatter_figure(output_dir: Path, prices: pd.DataFrame) -> None:
-    """Compare input and output prices without mixing currencies."""
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.8), constrained_layout=True)
-    for ax, currency in zip(axes, ["CNY", "USD"]):
-        subset = prices[prices.currency == currency].copy()
-        sns.scatterplot(data=subset, x="input", y="output", hue="family", style="family", s=95, ax=ax, legend=currency == "CNY")
-        for _, row in subset.iterrows():
-            ax.annotate(row.model.replace(" ", "\n", 1), (row.input, row.output), xytext=(5, 4), textcoords="offset points", fontsize=7)
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlabel(f"输入价格（{currency}/百万 token，对数）")
-        ax.set_ylabel(f"输出价格（{currency}/百万 token，对数）")
-        ax.set_title(f"{currency} 参考价格快照", weight="bold")
-        ax.grid(True, which="both", alpha=0.25)
-    axes[0].legend(title="模型族", frameon=True, fontsize=8)
-    fig.suptitle("用户提供价格数据的输入—输出价格分布", fontsize=15, weight="bold")
+    """Compare all input and output prices after conversion to CNY."""
+    subset = add_cny_prices(prices)
+    fig, ax = plt.subplots(figsize=(12, 8.5), constrained_layout=True)
+    sns.scatterplot(data=subset, x="input_cny", y="output_cny", hue="family", style="family", s=95, ax=ax)
+    for _, row in subset.iterrows():
+        ax.annotate(row.model.replace(" ", "\n", 1), (row.input_cny, row.output_cny), xytext=(5, 4), textcoords="offset points", fontsize=7)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel(f"输入价格（CNY/百万 token，对数；1 USD = {USD_TO_CNY:.1f} CNY）")
+    ax.set_ylabel(f"输出价格（CNY/百万 token，对数；1 USD = {USD_TO_CNY:.1f} CNY）")
+    ax.set_title("统一人民币参考价格快照", weight="bold")
+    ax.grid(True, which="both", alpha=0.25)
+    ax.legend(title="模型族", frameon=True, fontsize=8)
+    fig.suptitle("用户提供价格数据的输入—输出价格分布（美元按固定汇率换算）", fontsize=15, weight="bold")
     save(fig, output_dir, "model-router-price-input-output.png")
 
 
 def cache_discount_figure(output_dir: Path, prices: pd.DataFrame) -> None:
     """Show the cache-read discount as a multiple of ordinary input price."""
-    subset = prices.dropna(subset=["cache_read"]).copy()
-    subset["discount"] = subset.input / subset.cache_read
-    subset = subset.sort_values(["currency", "discount"], ascending=[True, False])
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6.2), constrained_layout=True)
-    for ax, currency in zip(axes, ["CNY", "USD"]):
-        values = subset[subset.currency == currency].sort_values("discount")
-        ax.barh(values.model, values.discount, color=sns.color_palette("crest", n_colors=max(len(values), 2))[:len(values)])
-        ax.axvline(1, color="#8c8c8c", lw=1)
-        ax.set_xlabel("普通输入价 / 缓存命中输入价（倍）")
-        ax.set_title(f"{currency} 缓存命中折扣", weight="bold")
-        ax.tick_params(axis="y", labelsize=8)
-        for y, value in enumerate(values.discount):
-            ax.text(value + max(value * 0.02, 0.03), y, f"{value:.1f}×", va="center", fontsize=8)
+    subset = add_cny_prices(prices).dropna(subset=["cache_read_cny"]).copy()
+    subset["discount"] = subset.input_cny / subset.cache_read_cny
+    values = subset.sort_values("discount")
+    fig, ax = plt.subplots(figsize=(11, 9), constrained_layout=True)
+    ax.barh(values.model, values.discount, color=sns.color_palette("crest", n_colors=max(len(values), 2))[:len(values)])
+    ax.axvline(1, color="#8c8c8c", lw=1)
+    ax.set_xlabel("普通输入价 / 缓存命中输入价（倍，汇率换算不改变折扣倍数）")
+    ax.set_title("统一参考价格下的缓存命中折扣", weight="bold")
+    ax.tick_params(axis="y", labelsize=8)
+    for y, value in enumerate(values.discount):
+        ax.text(value + max(value * 0.02, 0.03), y, f"{value:.1f}×", va="center", fontsize=8)
     fig.suptitle("缓存读取价格对有效成本的影响", fontsize=15, weight="bold")
     save(fig, output_dir, "model-router-cache-discount.png")
 
 
 def scenario_cost_figure(output_dir: Path, prices: pd.DataFrame) -> None:
-    """Estimate one common workload cost in each currency separately."""
+    """Estimate one common workload cost after conversion to CNY."""
+    prices = add_cny_prices(prices)
     input_tokens, output_tokens, cache_ratio = 100_000, 10_000, 0.40
     rows = []
     for _, row in prices.iterrows():
         if pd.isna(row.cache_read):
-            input_cost = input_tokens * row.input
+            input_cost = input_tokens * row.input_cny
             cache_note = "无缓存价，按普通输入"
         else:
-            input_cost = input_tokens * ((1 - cache_ratio) * row.input + cache_ratio * row.cache_read)
+            input_cost = input_tokens * ((1 - cache_ratio) * row.input_cny + cache_ratio * row.cache_read_cny)
             cache_note = "40%缓存命中"
-        total = (input_cost + output_tokens * row.output) / 1_000_000
-        rows.append({"model": row.model, "family": row.family, "currency": row.currency, "cost": total, "note": cache_note})
+        total = (input_cost + output_tokens * row.output_cny) / 1_000_000
+        rows.append({"model": row.model, "family": row.family, "cost_cny": total, "note": cache_note})
     scenario = pd.DataFrame(rows)
-    fig, axes = plt.subplots(1, 2, figsize=(14, 7), constrained_layout=True)
-    for ax, currency in zip(axes, ["CNY", "USD"]):
-        values = scenario[scenario.currency == currency].sort_values("cost", ascending=True)
-        sns.barplot(data=values, x="cost", y="model", hue="family", dodge=False, ax=ax, legend=False, palette="colorblind")
-        ax.set_xlabel(f"估计费用（{currency}）")
-        ax.set_ylabel("")
-        ax.set_title(f"{currency}：100K 输入 + 10K 输出", weight="bold")
-        ax.tick_params(axis="y", labelsize=8)
-        for y, value in enumerate(values.cost):
-            ax.text(value + max(values.cost.max() * 0.012, 0.001), y, f"{value:.3f}", va="center", fontsize=8)
-    fig.suptitle("统一 token 场景下的费用估计（40% 输入缓存命中）", fontsize=15, weight="bold")
+    values = scenario.sort_values("cost_cny", ascending=True)
+    fig, ax = plt.subplots(figsize=(12, 9), constrained_layout=True)
+    sns.barplot(data=values, x="cost_cny", y="model", hue="family", dodge=False, ax=ax, legend=False, palette="colorblind")
+    ax.set_xlabel(f"人民币估计费用（CNY；1 USD = {USD_TO_CNY:.1f} CNY）")
+    ax.set_ylabel("")
+    ax.set_title("统一人民币：100K 输入 + 10K 输出", weight="bold")
+    ax.tick_params(axis="y", labelsize=8)
+    for y, value in enumerate(values.cost_cny):
+        ax.text(value + max(values.cost_cny.max() * 0.012, 0.001), y, f"{value:.3f}", va="center", fontsize=8)
+    fig.suptitle("统一 token 场景下的人民币费用估计（40% 输入缓存命中）", fontsize=15, weight="bold")
     save(fig, output_dir, "model-router-scenario-cost.png")
 
 
@@ -200,7 +216,7 @@ def main() -> None:
     price_scatter_figure(args.output_dir, prices)
     cache_discount_figure(args.output_dir, prices)
     scenario_cost_figure(args.output_dir, prices)
-    print(f"Generated 5 figures in {args.output_dir} from {len(prices)} reference rows ({REFERENCE_DATE}).")
+    print(f"Generated 5 figures in {args.output_dir} from {len(prices)} reference rows ({REFERENCE_DATE}); USD_TO_CNY={USD_TO_CNY:.1f}.")
 
 
 if __name__ == "__main__":
