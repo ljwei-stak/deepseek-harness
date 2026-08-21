@@ -1,6 +1,7 @@
 /** GAL 视窗设置与桌面发行版更新入口。 */
 
 import React from 'react'
+import { selectUnifiedUpdate } from './update-selection.mjs'
 
 function messageFromError(error) {
   return error instanceof Error ? error.message : String(error)
@@ -81,7 +82,51 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi }) {
     }
   }
 
-  const progressValue = busy !== '' && progress?.kind === busy && Number.isFinite(Number(progress.percent))
+  const installAll = async () => {
+    if (typeof updateApi?.check !== 'function') {
+      setNotice('网页端不能更新本机插件或客户端，已为你打开项目 Release。')
+      await updateApi?.openReleases?.()
+      return
+    }
+    setBusy('all')
+    setProgress(null)
+    setNotice('正在检查插件与完整客户端...')
+    try {
+      const next = await updateApi.check()
+      setAssessment(next)
+      const selection = selectUnifiedUpdate(next)
+      if (selection.kind === null) {
+        setNotice(selection.reason)
+        return
+      }
+
+      const method = selection.kind === 'desktop' ? updateApi?.installDesktop : updateApi?.installPlugin
+      if (typeof method !== 'function') {
+        setNotice('当前环境不能执行所需更新，已为你打开项目 Release。')
+        await updateApi?.openReleases?.()
+        return
+      }
+      setProgress({ kind: selection.kind, phase: 'start', percent: 0 })
+      setNotice(selection.reason)
+      const result = await method()
+      if (result?.cancelled) {
+        setNotice('已取消更新。')
+        return
+      }
+      setNotice(result?.message || '更新已准备完成。')
+      if (selection.kind === 'plugin' && !result?.restartScheduled) {
+        setAssessment(await updateApi.check())
+      }
+    } catch (error) {
+      setNotice(`一键更新失败：${messageFromError(error)}`)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const progressValue = busy !== ''
+    && (busy === 'all' || progress?.kind === busy)
+    && Number.isFinite(Number(progress?.percent))
     ? Math.max(0, Math.min(100, Number(progress.percent)))
     : null
 
@@ -118,7 +163,7 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi }) {
               <span>{versionText(assessment?.plugin, updateApi?.pluginVersion ?? '未知')}</span>
               <small>{availabilityText(assessment?.plugin)}</small>
             </div>
-            <button type="button" disabled={busy !== ''} onClick={() => install('plugin')}>更新插件</button>
+            <button type="button" disabled={busy !== ''} onClick={() => install('plugin')}>仅更新插件</button>
           </div>
           <div className="gvsv-version-row">
             <div>
@@ -126,7 +171,7 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi }) {
               <span>{versionText(assessment?.desktop, '检查后显示')}</span>
               <small>{availabilityText(assessment?.desktop)}</small>
             </div>
-            <button type="button" disabled={busy !== ''} onClick={() => install('desktop')}>更新完整客户端</button>
+            <button type="button" disabled={busy !== ''} onClick={() => install('desktop')}>仅更新完整客户端</button>
           </div>
         </div>
 
@@ -137,12 +182,15 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi }) {
         )}
         {notice !== '' && <p className="gvsv-notice" role="status">{notice}</p>}
         <div className="gvsv-actions">
+          <button type="button" className="gvsv-update-all" disabled={busy !== ''} onClick={installAll}>
+            {busy === 'all' ? '正在一键更新...' : '一键更新插件与客户端'}
+          </button>
           <button type="button" disabled={busy !== ''} onClick={checkUpdates}>{busy === 'check' ? '检查中...' : '检查更新'}</button>
           <button type="button" className="gvsv-secondary" onClick={() => updateApi?.openReleases?.()}>查看 Releases</button>
         </div>
         <p className="gvsv-footnote">
           {updateApi?.isDesktop
-            ? '插件更新会保留当前版本作为回退；完整客户端安装不会删除用户目录中的 API、模型配置和历史任务。'
+            ? '一键更新会优先安装包含同版本插件的完整客户端；客户端已是最新版时才单独更新插件。API、模型配置和历史任务会保留。'
             : '当前是网页环境，只能查看 Release；安装桌面客户端后可直接更新本机插件和完整客户端。'}
         </p>
       </section>

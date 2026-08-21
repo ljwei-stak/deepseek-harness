@@ -6,7 +6,7 @@ An enhanced distribution of [DeepSeek Harness](https://github.com/deepseek-ai/de
 
 The project remains compatible with the Harness plugin architecture. The complete feature can also be installed as the standalone [`model-router-galgame`](plugins/model-router-galgame/README.md) plugin on an original DeepSeek Harness checkout.
 
-> Current plugin and desktop version: `0.4.8`. DeepSeek Harness is still a developer preview and may introduce compatibility-breaking changes.
+> Current plugin and desktop version: `0.4.9`. DeepSeek Harness is still a developer preview and may introduce compatibility-breaking changes.
 
 ## Preview
 
@@ -73,8 +73,8 @@ The system displays the scoring inputs, assignments, costs, stage reports, and o
 
 Download the one-click installer from the project release. GitHub publishes the 574 MiB installer as short parts so the download remains reliable on long-running connections. Run the downloader on Windows; it combines the parts and verifies the original installer SHA256 automatically:
 
-- [Download and verify script](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.8/download_desktop_release.ps1)
-- [Release notes, plugin archive, blockmap, and SHA256 checksums](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.8)
+- [Download and verify script](https://github.com/ljwei-stak/deepseek-harness/releases/download/model-router-galgame-0.4.9/download_desktop_release.ps1)
+- [Release notes, plugin archive, blockmap, and SHA256 checksums](https://github.com/ljwei-stak/deepseek-harness/releases/tag/model-router-galgame-0.4.9)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\download_desktop_release.ps1 -RunInstaller
@@ -82,7 +82,7 @@ powershell -ExecutionPolicy Bypass -File .\download_desktop_release.ps1 -RunInst
 
 After installation, choose **server mode** to open the hosted Harness workspace or **local mode** to unpack and start the bundled runtime. Model providers and API keys remain configurable through the Harness settings interface.
 
-Open **Settings → Plugins → GAL View → Project updates** to check the fixed [`ljwei-stak/deepseek-harness`](https://github.com/ljwei-stak/deepseek-harness) release channel. **Update plugin** downloads an independently versioned plugin archive, validates its SHA256, structure, and minimum client/runtime versions, then activates it through a rollback-safe per-user version pointer. **Update full client** resumes the release parts, reconstructs and validates the installer, and starts the native installer after confirmation. API keys, provider settings, sessions, and plugin rollback versions stay in the user data directory. A browser-only deployment cannot write local files and opens the Releases page instead.
+Open **Settings → Plugins → GAL View → Project updates** to check the fixed [`ljwei-stak/deepseek-harness`](https://github.com/ljwei-stak/deepseek-harness) release channel. **One-click update plugin and client** updates the full client first when it is outdated because that installer already contains the matching plugin; when the client is current, it installs only the independently versioned plugin. The manual plugin and full-client actions remain available. Plugin archives are validated for SHA256, structure, and minimum versions before rollback-safe activation, while client parts are reconstructed and verified before the native installer starts. API keys, provider settings, sessions, and plugin rollback versions stay in the user data directory. A browser-only deployment cannot write local files and opens the Releases page instead.
 
 ### Install the plugin on original Harness
 

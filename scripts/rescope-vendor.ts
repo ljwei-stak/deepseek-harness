@@ -79,6 +79,8 @@ interface GenericSkip {
 const GENERIC_SKIPS: readonly GenericSkip[] = [
   // `vendorPackages` lists vendor/ directory names, joined with 'vendor' below it.
   { file: 'packages/examples/acp-demo/tests/built-bin.e2e.ts', upstream: ['cordis', 'cosmokit', 'schemastery'] },
+  // The packaged desktop runtime resolves vendor/cordis by its on-disk directory name.
+  { file: 'desktop/harness-main.js', upstream: ['cordis'] },
   // `Symbol.for('schemastery')` and the `vendor:` metadata field are upstream identifiers.
   { file: 'vendor/schemastery/src/index.ts', upstream: ['schemastery'] },
   // Asserts the vendored-manifest table, which gains an upstream-name column.

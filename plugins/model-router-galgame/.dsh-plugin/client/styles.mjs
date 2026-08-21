@@ -701,6 +701,7 @@ export const CSS = `
 .gvsv-update button:hover:not(:disabled) { border-color: rgba(79, 140, 255, .75); background: rgba(79, 140, 255, .14); }
 .gvsv-update button:disabled { cursor: wait; opacity: .48; }
 .gvsv-update button.gvsv-link, .gvsv-update button.gvsv-secondary { border-color: rgba(255, 255, 255, .18); background: transparent; }
+.gvsv-update button.gvsv-update-all { border-color: rgba(79, 140, 255, .82); background: rgba(79, 140, 255, .28); font-weight: 600; }
 .gvsv-version-list { display: grid; gap: 8px; margin-top: 13px; }
 .gvsv-version-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; padding: 10px 11px; background: rgba(255, 255, 255, .035); }
 .gvsv-version-row > div { display: grid; min-width: 0; gap: 3px; }

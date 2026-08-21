@@ -4,7 +4,7 @@ const net = require('node:net')
 const path = require('node:path')
 const { _electron: electron, expect, test } = require('@playwright/test')
 
-const HARNESS_RUNTIME_VERSION = '0.4.8'
+const HARNESS_RUNTIME_VERSION = '0.4.9'
 
 function listen(server) {
   return new Promise((resolve, reject) => {
