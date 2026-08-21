@@ -3,10 +3,78 @@ import {
   collaborationInstruction,
   collaborationStage,
   collectOpenCodeEndpointRepairs,
+  DEFAULT_ROUTER_SETTINGS,
+  MODEL_ROUTER_SETTINGS_NAMESPACE,
   nextCollaborationStage,
   textFromMessages,
 } from './shared/router.mjs'
+import { fetchLiveBenchSnapshot } from './shared/livebench.mjs'
 import { buildPersonaPrompt, isPersonaPrompt } from './shared/persona.mjs'
+
+let settingsRuntimePromise
+let routerSettings = { ...DEFAULT_ROUTER_SETTINGS }
+let routerSettingsReady = false
+let routerSettingsPromise = Promise.resolve(false)
+
+async function loadSettingsRuntime() {
+  if (settingsRuntimePromise !== undefined) return settingsRuntimePromise
+  settingsRuntimePromise = Promise.all([
+    import('@deepseek-ai/schemastery').catch(() => import('../../../vendor/schemastery/lib/index.mjs')),
+    import('@deepseek-ai/dsh-settings').catch(() => import('../../../packages/settings/settings/lib/index.js')),
+  ]).then(([schemaModule, settingsModule]) => ({
+    z: schemaModule.default ?? schemaModule,
+    settingsNamespace: settingsModule.settingsNamespace,
+  }))
+  return settingsRuntimePromise
+}
+
+function routerSettingsSchema(z) {
+  const price = z.object({
+    input: z.number().min(0).default(0),
+    output: z.number().min(0).default(0),
+    cacheRead: z.number().min(0).default(0),
+    cacheWrite: z.number().min(0).default(0),
+    currency: z.string().default('USD'),
+  })
+  return z.object({
+    pricing: z.dict(price).default({}),
+    liveBenchEndpoint: z.string().default(DEFAULT_ROUTER_SETTINGS.liveBenchEndpoint),
+    liveBenchTtlMs: z.number().min(30000).default(DEFAULT_ROUTER_SETTINGS.liveBenchTtlMs),
+    budgetUsd: z.number().min(0).default(DEFAULT_ROUTER_SETTINGS.budgetUsd),
+    cacheReadRatio: z.number().min(0).max(1).default(DEFAULT_ROUTER_SETTINGS.cacheReadRatio),
+    cacheWriteRatio: z.number().min(0).max(1).default(DEFAULT_ROUTER_SETTINGS.cacheWriteRatio),
+  })
+}
+
+function invalidateRouterPlans() {
+  for (const state of allStates) {
+    state.plan = null
+    state.liveBenchPromise = null
+    state.liveBenchError = null
+  }
+}
+
+async function registerRouterSettings(ctx) {
+  const settings = settingsService(ctx)
+  if (settings === undefined || typeof settings.register !== 'function') return false
+  try {
+    const runtime = await loadSettingsRuntime()
+    const namespace = runtime.settingsNamespace(MODEL_ROUTER_SETTINGS_NAMESPACE)
+    const scope = settings.register(namespace, routerSettingsSchema(runtime.z), {
+      base: DEFAULT_ROUTER_SETTINGS,
+    })
+    routerSettings = scope.get()
+    routerSettingsReady = true
+    scope.watch(next => {
+      routerSettings = next
+      invalidateRouterPlans()
+    })
+    return true
+  } catch (error) {
+    ctx.logger?.warn?.(`model-router: settings registration unavailable: ${String(error)}`)
+    return false
+  }
+}
 
 export const name = 'model-router-galgame'
 export const inject = ['commands', 'llm', 'settings']
@@ -32,6 +100,10 @@ function stateFor(agent) {
       collaboration: null,
       taskText: '',
       personaInjected: false,
+      liveBench: null,
+      liveBenchFetchedAt: 0,
+      liveBenchPromise: null,
+      liveBenchError: null,
     }
     states.set(agent, state)
     allStates.add(state)
@@ -65,6 +137,34 @@ async function discover(ctx, state) {
 
 function inputText(messages) {
   return textFromMessages(messages).slice(-12000)
+}
+
+async function liveBenchFor(ctx, state) {
+  if (!routerSettingsReady) return state.liveBench
+  const ttl = Math.max(30000, Number(routerSettings.liveBenchTtlMs) || DEFAULT_ROUTER_SETTINGS.liveBenchTtlMs)
+  if (state.liveBench !== null && Date.now() - state.liveBenchFetchedAt < ttl) return state.liveBench
+  if (state.liveBenchPromise !== null) return state.liveBenchPromise
+  const configuredEndpoint = String(routerSettings.liveBenchEndpoint || DEFAULT_ROUTER_SETTINGS.liveBenchEndpoint)
+  // Migrate the endpoint used by the first prototype; it returned 404 after
+  // LiveBench moved to versioned CSV/JSON assets.
+  const endpoint = configuredEndpoint === 'https://livebench.ai/api/leaderboard'
+    ? DEFAULT_ROUTER_SETTINGS.liveBenchEndpoint
+    : configuredEndpoint
+  state.liveBenchPromise = fetchLiveBenchSnapshot({
+    endpoint,
+  }).then(snapshot => {
+    state.liveBench = snapshot
+    state.liveBenchFetchedAt = snapshot.fetchedAt
+    state.liveBenchError = null
+    return snapshot
+  }).catch(error => {
+    state.liveBenchError = String(error)
+    ctx.logger?.warn?.(`model-router: LiveBench refresh failed; using ${state.liveBench === null ? 'experimental baseline' : 'last snapshot'}: ${String(error)}`)
+    return state.liveBench
+  }).finally(() => {
+    state.liveBenchPromise = null
+  })
+  return state.liveBenchPromise
 }
 
 function newMessageId() {
@@ -132,8 +232,13 @@ function analysisMessage(plan) {
   const text = [
     '[Model Router 路由分析]',
     `任务类型：${plan.taskType}；复杂度：${plan.complexity?.band ?? 'unknown'}（${Math.round((plan.complexity?.value ?? 0) * 100)}%）`,
-    `本轮权重：质量 ${Math.round((weights.quality ?? 0) * 100)}%，成本 ${Math.round((weights.cost ?? 0) * 100)}%，延迟 ${Math.round((weights.latency ?? 0) * 100)}%，风险 ${Math.round((weights.risk ?? 0) * 100)}%`,
-    `首选路由：${selected}；预计总费用：$${Number(plan.estimatedCost ?? 0).toFixed(6)}`,
+    Array.isArray(plan.taskTypes) && plan.taskTypes.length > 1 ? `业务方向：${plan.taskTypes.join('、')}（分别建立执行工作包）` : '',
+    `本轮权重：质量 ${Math.round((weights.quality ?? 0) * 100)}%，成本 ${Math.round((weights.cost ?? 0) * 100)}%，延迟 ${Math.round((weights.latency ?? 0) * 100)}%，专长 ${Math.round((weights.specialty ?? 0) * 100)}%，风险 ${Math.round((weights.risk ?? 0) * 100)}%`,
+    `质量下限：${Math.round(Number(plan.optimization?.qualityFloor ?? 0) * 100)}%；首选路由：${selected}`,
+    `预计总费用：$${Number(plan.estimatedCost ?? 0).toFixed(6)}；相对全高质量基线节省：$${Number((plan.optimization?.baselineAllStrongCost ?? 0) - (plan.estimatedCost ?? 0)).toFixed(6)}`,
+    `缓存计费比例：读取 ${Math.round(Number(plan.optimization?.cacheReadRatio ?? 0) * 100)}%，写入 ${Math.round(Number(plan.optimization?.cacheWriteRatio ?? 0) * 100)}%（未填写时按普通输入计费）`,
+    Number(plan.optimization?.budgetUsd ?? 0) > 0 ? `预算上限：$${Number(plan.optimization.budgetUsd).toFixed(6)}；${plan.optimization.budgetExceeded ? '仍超预算，已在质量下限内尽量压缩' : '满足预算约束'}` : '',
+    `LiveBench：${plan.optimization?.liveBench?.fetchedAt ? `快照于 ${new Date(Number(plan.optimization.liveBench.fetchedAt)).toISOString()}${plan.optimization.liveBench.stale ? '（本次刷新失败，沿用上次快照）' : ''}` : '未完成联网核验，使用实验基线'}`,
     String(plan.reason ?? ''),
   ].filter(Boolean).join('\n')
   return {
@@ -270,6 +375,33 @@ function createOpenCodeRepairScheduler(ctx) {
 }
 
 export function apply(ctx) {
+  // Settings are optional in headless test/minimal hosts. In a full Harness
+  // process this registers the editable pricing, LiveBench and budget section;
+  // the dynamic import keeps the standalone plugin loadable during bootstrap.
+  if (typeof ctx.inject === 'function') {
+    routerSettingsPromise = new Promise(resolve => {
+      let settled = false
+      const finish = value => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
+      const timer = setTimeout(() => finish(false), 250)
+      try {
+        ctx.inject(['settings'], settingsCtx => {
+          void registerRouterSettings(settingsCtx).then(value => {
+            clearTimeout(timer)
+            finish(value)
+          })
+        })
+      } catch {
+        clearTimeout(timer)
+        finish(false)
+      }
+    })
+  } else {
+    routerSettingsPromise = registerRouterSettings(ctx)
+  }
   const scheduleOpenCodeRepair = createOpenCodeRepairScheduler(ctx)
   ctx.commands.register({
     name: 'router',
@@ -344,8 +476,20 @@ export function apply(ctx) {
     const available = await discover(ctx, state)
     if (signal?.aborted) return next()
     if (state.plan === null || state.plan.mode !== state.mode) {
+      await routerSettingsPromise
       state.taskText = inputText(messages)
-      state.plan = buildPlan({ text: state.taskText, available, mode: state.mode })
+      const liveBench = await liveBenchFor(ctx, state)
+      state.plan = buildPlan({
+        text: state.taskText,
+        available,
+        mode: state.mode,
+        pricing: routerSettings.pricing,
+        liveBench,
+        liveBenchError: state.liveBenchError,
+        budgetUsd: routerSettings.budgetUsd,
+        cacheReadRatio: routerSettings.cacheReadRatio,
+        cacheWriteRatio: routerSettings.cacheWriteRatio,
+      })
       state.collaboration = shouldCollaborate(state.plan, available)
         ? { lastStep: 0, queuedStep: null }
         : null

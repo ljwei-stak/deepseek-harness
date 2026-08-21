@@ -1,12 +1,35 @@
 /**
  * Shared, deterministic routing model used by the Host and GAL client.
- * It intentionally exposes the scoring summary, not private model reasoning.
+ * It intentionally exposes an auditable decision record, not private model
+ * reasoning. The optimizer is a constrained assignment heuristic over a small
+ * task DAG; this keeps plan generation bounded and reproducible in a desktop
+ * process while retaining the same objective used in the thesis model.
  */
 
+import { liveBenchRow } from './livebench.mjs'
+
 export const OBJECTIVE_WEIGHTS = Object.freeze({
-  simple: Object.freeze({ quality: 0.35, cost: 0.45, latency: 0.15, risk: 0.05 }),
-  balanced: Object.freeze({ quality: 0.52, cost: 0.28, latency: 0.12, risk: 0.08 }),
-  complex: Object.freeze({ quality: 0.65, cost: 0.18, latency: 0.07, risk: 0.10 }),
+  simple: Object.freeze({ quality: 0.30, cost: 0.50, latency: 0.14, specialty: 0.04, risk: 0.02 }),
+  balanced: Object.freeze({ quality: 0.45, cost: 0.30, latency: 0.10, specialty: 0.10, risk: 0.05 }),
+  complex: Object.freeze({ quality: 0.55, cost: 0.16, latency: 0.06, specialty: 0.16, risk: 0.07 }),
+})
+
+/** Quality floor for a task node before a cost-saving substitution is allowed. */
+export const QUALITY_FLOORS = Object.freeze({ simple: 0.64, balanced: 0.72, complex: 0.78 })
+
+/** Host settings namespace used by the manual pricing editor. */
+export const MODEL_ROUTER_SETTINGS_NAMESPACE = 'model-router'
+
+/** Empty user layer means "use the experimental baseline". */
+export const DEFAULT_ROUTER_SETTINGS = Object.freeze({
+  pricing: Object.freeze({}),
+  // The official site publishes versioned table/categories assets and the
+  // adapter discovers the newest release from this root URL.
+  liveBenchEndpoint: 'https://livebench.ai',
+  liveBenchTtlMs: 900000,
+  budgetUsd: 0,
+  cacheReadRatio: 0,
+  cacheWriteRatio: 0,
 })
 
 // USD per million tokens. Values are an initial catalog and can be replaced by
@@ -31,6 +54,7 @@ export const MODEL_CATALOG = Object.freeze([
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value))
 const normalize = value => String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+const routeKey = (provider, model) => `${String(provider ?? '')}/${String(model ?? '')}`
 
 /** OpenCode routes whose catalog entries carry their own protocol endpoint. */
 export const OPENCODE_CATALOG_PROVIDERS = Object.freeze([
@@ -96,16 +120,37 @@ export function textFromMessages(messages) {
 
 export function classifyTask(text) {
   const value = String(text ?? '')
-  const lower = value.toLowerCase()
-  const has = pattern => pattern.test(lower)
-  if (value.length < 80 && has(/翻译|解释|translate|explain/)) return 'general'
-  if (has(/图片|图像|照片|视觉|image|vision|截图|识图/)) return 'vision'
-  if (has(/数学|证明|定理|公式|方程|math|proof|theorem/)) return 'math'
-  if (has(/代码|编程|工程|项目|架构|接口|api|debug|实现|部署|测试|code/)) return 'code'
-  if (has(/研究|论文|文献|联网|检索|research|source|引用/)) return 'research'
-  if (has(/总结|摘要|提炼|分类|翻译|summar|classif|extract/)) return 'summarization'
-  if (has(/写作|润色|小说|文案|报告|writing|draft/)) return 'writing'
-  return 'general'
+  if (value.length < 80 && /翻译|解释|translate|explain/i.test(value)) return 'general'
+  return detectTaskTypes(value)[0] ?? 'general'
+}
+
+const TASK_TYPE_RULES = Object.freeze([
+  ['vision', /图片|图像|照片|视觉|image|vision|截图|识图/i],
+  ['math', /数学|证明|定理|公式|方程|math|proof|theorem/i],
+  ['code', /代码|编程|工程|项目|架构|接口|api|debug|实现|部署|测试|code/i],
+  ['research', /研究|论文|文献|联网|检索|research|source|引用/i],
+  ['summarization', /总结|摘要|提炼|分类|翻译|summar|classif|extract/i],
+  ['writing', /写作|润色|小说|文案|报告|writing|draft/i],
+])
+
+const TASK_TYPE_LABELS = Object.freeze({
+  vision: '视觉处理',
+  math: '数学推导',
+  code: '工程与代码',
+  research: '研究与检索',
+  summarization: '摘要与整理',
+  writing: '写作与表达',
+})
+
+/** Return all explicit business directions, ranked by signal count. */
+export function detectTaskTypes(text) {
+  const value = String(text ?? '')
+  const ranked = TASK_TYPE_RULES.map(([type, pattern]) => ({
+    type,
+    signals: value.match(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`))?.length ?? 0,
+  })).filter(item => item.signals > 0)
+  ranked.sort((left, right) => right.signals - left.signals || left.type.localeCompare(right.type))
+  return ranked.map(item => item.type)
 }
 
 export function assessComplexity(text) {
@@ -122,7 +167,9 @@ export function assessComplexity(text) {
   return { value: raw, band }
 }
 
-function specialtyMatch(model, taskType) {
+function specialtyMatch(model, taskType, liveScores = {}) {
+  const benchmark = asScore(liveScores?.[taskType])
+  if (benchmark !== undefined) return benchmark
   if (model.specialties.includes(taskType)) return 1
   if (taskType === 'general') return 0.58
   if (taskType === 'research' && model.specialties.includes('writing')) return 0.68
@@ -130,14 +177,88 @@ function specialtyMatch(model, taskType) {
   return 0.38
 }
 
-function costScore(model, maxCost) {
-  if (maxCost <= 0) return model.costIn === 0 && model.costOut === 0 ? 1 : 0.05
-  return clamp(1 - ((model.costIn + model.costOut) / 2) / maxCost)
+function qualityForTask(row, taskType) {
+  return asScore(row?.liveScores?.[taskType]) ?? asScore(row?.liveOverall) ?? row?.metadata?.quality ?? row?.quality ?? 0
 }
 
-export function estimateCost(model, text, outputTokens = 900) {
+function specialtyForTask(row, taskType) {
+  return specialtyMatch(row.metadata, taskType, row.liveScores)
+}
+
+function asScore(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return undefined
+  return clamp(number > 1 ? number / 100 : number)
+}
+
+function normalizePricing(pricing) {
+  if (pricing === null || typeof pricing !== 'object' || Array.isArray(pricing)) return {}
+  const normalized = {}
+  for (const [id, raw] of Object.entries(pricing)) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue
+    const input = Number(raw.input ?? raw.costIn)
+    const output = Number(raw.output ?? raw.costOut)
+    const cacheRead = Number(raw.cacheRead ?? 0)
+    const cacheWrite = Number(raw.cacheWrite ?? 0)
+    if (![input, output, cacheRead, cacheWrite].every(value => Number.isFinite(value) && value >= 0)) continue
+    normalized[normalize(id)] = {
+      input: input,
+      output,
+      cacheRead,
+      cacheWrite,
+      currency: String(raw.currency ?? 'USD').toUpperCase(),
+    }
+  }
+  return normalized
+}
+
+function pricingFor(model, pricing, provider = '') {
+  const normalizedPricing = normalizePricing(pricing)
+  const providerOverride = provider === '' ? undefined : normalizedPricing[normalize(`${provider}/${model.id}`)]
+  const override = providerOverride ?? normalizedPricing[normalize(model.id)]
+  return override ?? {
+    input: Number(model.costIn ?? 0),
+    output: Number(model.costOut ?? 0),
+    cacheRead: Number(model.cacheRead ?? 0),
+    cacheWrite: Number(model.cacheWrite ?? 0),
+    currency: 'USD',
+  }
+}
+
+function normalizedCacheRatios(cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const read = Number.isFinite(Number(cacheReadRatio)) ? clamp(Number(cacheReadRatio)) : 0
+  const write = Number.isFinite(Number(cacheWriteRatio)) ? Math.min(clamp(Number(cacheWriteRatio)), 1 - read) : 0
+  return { read, write }
+}
+
+function effectivePricing(pricing, cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const { read, write } = normalizedCacheRatios(cacheReadRatio, cacheWriteRatio)
+  return {
+    input: (1 - read - write) * Number(pricing.input)
+      + read * Number(pricing.cacheRead)
+      + write * Number(pricing.cacheWrite),
+    output: Number(pricing.output),
+  }
+}
+
+function costScore(pricing, maxCost, cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const effective = effectivePricing(pricing, cacheReadRatio, cacheWriteRatio)
+  const mean = (effective.input + effective.output) / 2
+  if (maxCost <= 0) return mean === 0 ? 1 : 0
+  return clamp(1 - mean / maxCost)
+}
+
+export function estimateCost(model, text, outputTokens = 900, pricingOverrides = {}, cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const pricing = pricingFor(model, pricingOverrides)
   const inputTokens = Math.max(80, Math.ceil(String(text ?? '').length / 3.7))
-  return ((inputTokens * model.costIn) + (outputTokens * model.costOut)) / 1_000_000
+  const ratios = normalizedCacheRatios(cacheReadRatio, cacheWriteRatio)
+  const cacheReadTokens = Math.min(inputTokens, Math.max(0, Math.round(inputTokens * ratios.read)))
+  const cacheWriteTokens = Math.min(inputTokens - cacheReadTokens, Math.max(0, Math.round(inputTokens * ratios.write)))
+  const billableInputTokens = inputTokens - cacheReadTokens - cacheWriteTokens
+  return ((billableInputTokens * pricing.input)
+    + (cacheReadTokens * pricing.cacheRead)
+    + (cacheWriteTokens * pricing.cacheWrite)
+    + (outputTokens * pricing.output)) / 1_000_000
 }
 
 export function modelMetadata(name) {
@@ -198,20 +319,98 @@ export function collaborationInstruction(plan, step) {
   ].join('\n')
 }
 
-function rowForRoute(rows, route) {
-  if (route === undefined || route === null) return null
-  return rows.find(row => row.provider === route.provider && row.model === route.model)
-    ?? rows.find(row => row.model === route.model)
-    ?? null
+function taskTokenBudget(text, task, complexity, cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const inputTokens = Math.max(80, Math.ceil(String(text ?? '').length / 3.7))
+  const multipliers = {
+    analysis: { input: 0.90, output: 0.55 },
+    execution: { input: 1.20, output: complexity === 'complex' ? 1.45 : 1.00 },
+    verification: { input: 1.15, output: 0.70 },
+    synthesis: { input: 1.65, output: 1.30 },
+  }
+  const multiplier = multipliers[task.purpose] ?? { input: 1, output: 1 }
+  const totalInputTokens = Math.max(80, Math.round(inputTokens * multiplier.input))
+  const ratios = normalizedCacheRatios(cacheReadRatio, cacheWriteRatio)
+  const cacheReadTokens = Math.min(totalInputTokens, Math.max(0, Math.round(totalInputTokens * ratios.read)))
+  const cacheWriteTokens = Math.min(totalInputTokens - cacheReadTokens, Math.max(0, Math.round(totalInputTokens * ratios.write)))
+  return {
+    inputTokens: totalInputTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    outputTokens: Math.max(220, Math.round(900 * multiplier.output)),
+  }
 }
 
-function assignmentFor(rows, task, fallback) {
-  const row = rowForRoute(rows, task)
-  if (row !== null) return row
-  return fallback
+function taskQualityFloor(band, task) {
+  const base = QUALITY_FLOORS[band] ?? QUALITY_FLOORS.balanced
+  if (task.purpose === 'synthesis') return Math.max(base, band === 'complex' ? 0.84 : base)
+  if (band !== 'complex') return base
+  return clamp(base + Math.max(0, Number(task.criticality ?? 0.75) - 0.65) * 0.12)
 }
 
-export function buildPlan({ text = '', available = [], mode = 'collective' } = {}) {
+function taskPackages(taskType, text, band) {
+  if (band !== 'complex') {
+    const task = { name: '直接回答与必要校验', type: taskType, purpose: 'execution', criticality: 0.65 }
+    return [{ ...task, qualityFloor: taskQualityFloor(band, task) }]
+  }
+  const value = String(text ?? '')
+  const packages = [
+    { name: '问题建模与约束提取', type: 'reasoning', purpose: 'analysis', criticality: 0.92 },
+  ]
+  const domains = [...new Set([...(detectTaskTypes(text)), taskType].filter(type => type !== 'general'))]
+  for (const type of domains.length > 0 ? domains : [taskType]) {
+    packages.push({
+      name: `${TASK_TYPE_LABELS[type] ?? type}方向处理`,
+      type,
+      purpose: 'execution',
+      criticality: domains.length > 1 ? 0.80 : 0.78,
+    })
+  }
+  if (/(测试|验证|评估|对比|benchmark|test|verify|audit)/i.test(value)) {
+    packages.push({ name: '验证、反例与风险审查', type: 'reasoning', purpose: 'verification', criticality: 0.88 })
+  }
+  packages.push({ name: '结果校验与整合', type: 'reasoning', purpose: 'synthesis', criticality: 1 })
+  return packages.map(task => ({ ...task, qualityFloor: taskQualityFloor(band, task) }))
+}
+
+function candidateUtility(row, task, weights, maxCost, usedRoutes, cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const quality = qualityForTask(row, task.type)
+  const floor = Number(task.qualityFloor ?? taskQualityFloor('complex', task))
+  const qualityGap = Math.max(0, floor - quality)
+  const duplicatePenalty = usedRoutes.has(routeKey(row.provider, row.model)) ? 0.08 : 0
+  const cost = costScore(row.pricing, maxCost, cacheReadRatio, cacheWriteRatio)
+  const score = weights.quality * quality
+    + weights.cost * cost
+    + weights.latency * (1 - clamp(row.latency))
+    + weights.specialty * specialtyForTask(row, task.type)
+    - weights.risk * row.risk
+    - duplicatePenalty
+    - qualityGap * (task.criticality ?? 0.75)
+  return { score, floor, qualityGap }
+}
+
+function chooseAssignment(rows, task, weights, maxCost, usedRoutes, preferred, cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const ordered = rows
+    .map(row => ({ row, decision: candidateUtility(row, task, weights, maxCost, usedRoutes, cacheReadRatio, cacheWriteRatio) }))
+    .sort((left, right) => right.decision.score - left.decision.score)
+  const feasible = ordered.filter(item => qualityForTask(item.row, task.type) >= item.decision.floor)
+  const chosen = (preferred === true ? feasible : feasible.filter(item => !usedRoutes.has(routeKey(item.row.provider, item.row.model))))[0]
+    ?? feasible[0]
+    ?? ordered[0]
+  if (chosen === undefined) return { row: null, relaxed: true, floor: 0, qualityGap: 1 }
+  return { row: chosen.row, relaxed: qualityForTask(chosen.row, task.type) < chosen.decision.floor, floor: chosen.decision.floor, qualityGap: chosen.decision.qualityGap }
+}
+
+function taskCost(row, task, text, complexity, cacheReadRatio = 0, cacheWriteRatio = 0) {
+  const tokens = taskTokenBudget(text, task, complexity, cacheReadRatio, cacheWriteRatio)
+  return row === null
+    ? 0
+    : (((tokens.inputTokens - tokens.cacheReadTokens - tokens.cacheWriteTokens) * row.pricing.input)
+      + (tokens.cacheReadTokens * row.pricing.cacheRead)
+      + (tokens.cacheWriteTokens * row.pricing.cacheWrite)
+      + (tokens.outputTokens * row.pricing.output)) / 1_000_000
+}
+
+export function buildPlan({ text = '', available = [], mode = 'collective', pricing = {}, liveBench = null, liveBenchError = '', budgetUsd = 0, cacheReadRatio = 0, cacheWriteRatio = 0 } = {}) {
   const complexity = assessComplexity(text)
   const taskType = classifyTask(text)
   const weights = OBJECTIVE_WEIGHTS[complexity.band]
@@ -219,92 +418,151 @@ export function buildPlan({ text = '', available = [], mode = 'collective' } = {
     ? available.map(entry => ({ provider: String(entry.provider ?? ''), model: String(entry.model ?? '') }))
     : []
   const rows = []
-  const maxCost = Math.max(1, ...MODEL_CATALOG.map(model => model.costIn + model.costOut))
+  const normalizedPrices = normalizePricing(pricing)
+  const maxCost = Math.max(1, ...MODEL_CATALOG.map(model => {
+    const row = pricingFor(model, normalizedPrices)
+    const effective = effectivePricing(row, cacheReadRatio, cacheWriteRatio)
+    return effective.input + effective.output
+  }), ...Object.values(normalizedPrices).map(row => {
+    const effective = effectivePricing(row, cacheReadRatio, cacheWriteRatio)
+    return effective.input + effective.output
+  }))
   for (const route of discovered) {
     const metadata = modelMetadata(route.model) ?? {
       id: route.model, aliases: [route.model], quality: 0.66, latency: 0.55,
       costIn: 1, costOut: 4, specialties: [], risk: 0.24,
     }
-    const specialty = specialtyMatch(metadata, taskType)
-    // `latency` is catalogued as a normalized delay (0 = fastest, 1 = slowest),
-    // so the objective term must reward its inverse rather than the raw delay.
-    const latencyScore = 1 - clamp(metadata.latency)
-    const utility = weights.quality * metadata.quality
-      + weights.cost * costScore(metadata, maxCost)
-      + weights.latency * latencyScore
-      + (1 - weights.risk) * specialty * 0.12
-      - weights.risk * metadata.risk
-    rows.push({ provider: route.provider, model: route.model, metadata, specialty, score: clamp(utility), estimatedCost: estimateCost(metadata, text) })
+    const live = liveBenchRow(liveBench, route.model)
+    const liveScores = live?.scores ?? {}
+    const liveOverall = asScore(live?.overall)
+    const quality = asScore(liveScores?.[taskType]) ?? liveOverall ?? metadata.quality
+    const pricingRow = pricingFor(metadata, normalizedPrices, route.provider)
+    const specialty = specialtyMatch(metadata, taskType, liveScores)
+    rows.push({
+      provider: route.provider,
+      model: route.model,
+      metadata,
+      quality,
+      liveScores,
+      liveOverall,
+      latency: metadata.latency,
+      risk: metadata.risk,
+      specialty,
+      pricing: pricingRow,
+      score: 0,
+      estimatedCost: estimateCost(metadata, text, 900, normalizedPrices, cacheReadRatio, cacheWriteRatio),
+    })
   }
+  const taskNodes = taskPackages(taskType, text, complexity.band)
+  const usedRoutes = new Set()
+  let constraintRelaxed = false
+  const assignments = []
+  for (const task of taskNodes) {
+    const preferred = task.purpose === 'synthesis'
+      ? rows.find(row => /deepseek[- ]?v4[- ]?pro/i.test(row.model))
+        ?? rows.find(row => /deepseek/i.test(row.model))
+      : null
+    const selectedAssignment = preferred === null
+      ? chooseAssignment(rows, task, weights, maxCost, usedRoutes, false, cacheReadRatio, cacheWriteRatio)
+      : { row: preferred, relaxed: qualityForTask(preferred, task.type) < task.qualityFloor, floor: task.qualityFloor, qualityGap: Math.max(0, task.qualityFloor - qualityForTask(preferred, task.type)) }
+    const row = selectedAssignment.row
+    if (row !== null) {
+      row.score = candidateUtility(row, task, weights, maxCost, usedRoutes, cacheReadRatio, cacheWriteRatio).score
+      usedRoutes.add(routeKey(row.provider, row.model))
+    }
+    constraintRelaxed ||= selectedAssignment.relaxed
+    assignments.push({ task, row, decision: selectedAssignment })
+  }
+
+  // A user budget is a hard secondary constraint. If the first utility pass
+  // exceeds it, progressively replace the least-critical non-synthesis stage
+  // with the cheapest candidate that still satisfies its quality floor.
+  const budget = Number(budgetUsd)
+  const totalFor = () => assignments.reduce((sum, assignment) => sum + taskCost(assignment.row, assignment.task, text, complexity.band, cacheReadRatio, cacheWriteRatio), 0)
+  if (budget > 0 && totalFor() > budget) {
+    const movable = assignments
+      .filter(assignment => assignment.task.purpose !== 'synthesis')
+      .sort((left, right) => (left.task.criticality ?? 0) - (right.task.criticality ?? 0))
+    for (const assignment of movable) {
+      if (totalFor() <= budget) break
+      const alternatives = rows
+        .filter(row => row !== assignment.row && qualityForTask(row, assignment.task.type) >= assignment.task.qualityFloor)
+        .sort((left, right) => taskCost(left, assignment.task, text, complexity.band, cacheReadRatio, cacheWriteRatio) - taskCost(right, assignment.task, text, complexity.band, cacheReadRatio, cacheWriteRatio))
+      const replacement = alternatives.find(row => taskCost(row, assignment.task, text, complexity.band, cacheReadRatio, cacheWriteRatio) < taskCost(assignment.row, assignment.task, text, complexity.band, cacheReadRatio, cacheWriteRatio))
+      if (replacement !== undefined) assignment.row = replacement
+    }
+  }
+  usedRoutes.clear()
+  for (const assignment of assignments) if (assignment.row !== null) usedRoutes.add(routeKey(assignment.row.provider, assignment.row.model))
   rows.sort((a, b) => b.score - a.score)
-  const selected = rows[0] ?? null
-  const synthesizer = rows.find(row => /deepseek[- ]?v4[- ]?pro/i.test(row.model))
-    ?? rows.find(row => /deepseek/i.test(row.model))
-    ?? rows[0]
-  const analysis = rows[0] ?? null
-  // Prefer a genuinely different second worker. If only one route is live,
-  // reusing it is explicit in the plan rather than silently pretending that
-  // two providers executed independently.
-  const execution = rows.find(row => row.provider !== analysis?.provider || row.model !== analysis?.model) ?? analysis
-  const subtasks = complexity.band === 'complex'
-    ? [
-        {
-          name: '问题建模与约束提取',
-          type: taskType,
-          recommended: analysis?.model ?? '待发现模型',
-          recommendedProvider: analysis?.provider ?? '',
-          purpose: 'analysis',
-        },
-        {
-          name: '资料/代码/证据处理',
-          type: taskType === 'math' ? 'research' : taskType,
-          recommended: execution?.model ?? '待发现模型',
-          recommendedProvider: execution?.provider ?? '',
-          purpose: 'execution',
-        },
-        {
-          name: '结果校验与整合',
-          type: 'reasoning',
-          recommended: synthesizer?.model ?? '待发现模型',
-          recommendedProvider: synthesizer?.provider ?? '',
-          purpose: 'synthesis',
-        },
-      ]
-    : [{ name: '直接回答与必要校验', type: taskType, recommended: selected?.model ?? '待发现模型', recommendedProvider: selected?.provider ?? '' }]
-  const workRows = complexity.band === 'complex'
-    ? subtasks.slice(0, -1).map(task => assignmentFor(rows, { provider: task.recommendedProvider, model: task.recommended }, selected)).filter(Boolean)
-    : []
-  const totalEstimate = complexity.band === 'complex'
-    ? workRows.reduce((sum, row) => sum + row.estimatedCost, 0) + (synthesizer?.estimatedCost ?? 0)
-    : selected?.estimatedCost ?? 0
+  const selected = assignments[0]?.row ?? rows[0] ?? null
+  const synthesizer = assignments.at(-1)?.row ?? rows.find(row => /deepseek/i.test(row.model)) ?? rows[0]
+  const subtasks = assignments.map(({ task, row }) => ({
+    name: task.name,
+    type: task.type,
+    recommended: row?.model ?? '待发现模型',
+    recommendedProvider: row?.provider ?? '',
+    purpose: task.purpose,
+    criticality: task.criticality,
+    qualityFloor: Number(task.qualityFloor.toFixed(3)),
+  }))
+  const costBreakdown = assignments.map(({ task, row }, index) => {
+    const tokens = taskTokenBudget(text, task, complexity.band, cacheReadRatio, cacheWriteRatio)
+    const estimatedCost = taskCost(row, task, text, complexity.band, cacheReadRatio, cacheWriteRatio)
+    return {
+      stage: index + 1,
+      purpose: task.purpose,
+      model: row?.model ?? '待发现模型',
+      provider: row?.provider ?? '',
+      inputTokens: tokens.inputTokens,
+      cacheReadTokens: tokens.cacheReadTokens,
+      cacheWriteTokens: tokens.cacheWriteTokens,
+      outputTokens: tokens.outputTokens,
+      estimatedCost: Number(estimatedCost.toFixed(6)),
+      quality: Number((row === null ? 0 : qualityForTask(row, task.type)).toFixed(3)),
+    }
+  })
+  const totalEstimate = costBreakdown.reduce((sum, row) => sum + row.estimatedCost, 0)
+  const baselineCost = assignments.reduce((sum, { task }) => {
+    const strongest = rows.reduce((best, row) => qualityForTask(row, task.type) > (best === null ? -1 : qualityForTask(best, task.type)) ? row : best, null)
+    const tokens = taskTokenBudget(text, task, complexity.band, cacheReadRatio, cacheWriteRatio)
+    return sum + (strongest === null ? 0 : (((tokens.inputTokens - tokens.cacheReadTokens - tokens.cacheWriteTokens) * strongest.pricing.input)
+      + (tokens.cacheReadTokens * strongest.pricing.cacheRead)
+      + (tokens.cacheWriteTokens * strongest.pricing.cacheWrite)
+      + (tokens.outputTokens * strongest.pricing.output)) / 1_000_000)
+  }, 0)
+  const budgetExceeded = Number(budgetUsd) > 0 && totalEstimate > Number(budgetUsd)
+  const savings = baselineCost <= 0 ? 0 : clamp((baselineCost - totalEstimate) / baselineCost)
   const reason = selected === null
     ? '尚未发现可用模型，保留 Harness 原始模型选择。'
-    : `${complexity.band === 'simple' ? '低复杂度优先成本与响应速度' : complexity.band === 'balanced' ? '在质量、成本、延迟与风险之间平衡' : '高复杂度优先质量与任务专长'}；任务类型为 ${taskType}，候选模型按综合效用分排序。`
+    : `${complexity.band === 'simple' ? '低复杂度优先成本与响应速度' : complexity.band === 'balanced' ? '在质量、成本、延迟与风险之间平衡' : '高复杂度按关键度设置质量下限，再在可行候选中最小化费用'}；任务类型为 ${taskType}，已对 ${String(subtasks.length)} 个工作包进行约束指派。`
   return {
     mode,
     complexity: { value: Number(complexity.value.toFixed(3)), band: complexity.band },
     taskType,
+    taskTypes: [...new Set(taskNodes.map(task => task.type).filter(type => type !== 'reasoning'))],
     objectiveWeights: weights,
-    candidates: rows.slice(0, 8).map(row => ({ provider: row.provider, model: row.model, score: Number(row.score.toFixed(3)), specialty: Number(row.specialty.toFixed(3)), estimatedCost: Number(row.estimatedCost.toFixed(6)) })),
+    candidates: rows.slice(0, 8).map(row => ({ provider: row.provider, model: row.model, score: Number(row.score.toFixed(3)), quality: Number(row.quality.toFixed(3)), specialty: Number(row.specialty.toFixed(3)), estimatedCost: Number(row.estimatedCost.toFixed(6)), inputPrice: row.pricing.input, outputPrice: row.pricing.output })),
     selected: selected === null ? null : { provider: selected.provider, model: selected.model, estimatedCost: Number(selected.estimatedCost.toFixed(6)) },
     subtasks,
     synthesizer: synthesizer === undefined ? null : { provider: synthesizer.provider, model: synthesizer.model },
     estimatedCost: Number(totalEstimate.toFixed(6)),
-    costBreakdown: complexity.band === 'complex'
-      ? [
-          ...subtasks.map((task, index) => {
-            const row = rows.find(candidate => candidate.provider === task.recommendedProvider && candidate.model === task.recommended)
-              ?? rows.find(candidate => candidate.model === task.recommended)
-            return {
-              stage: index + 1,
-              purpose: task.purpose,
-              model: task.recommended,
-              provider: task.recommendedProvider,
-              estimatedCost: Number((row?.estimatedCost ?? 0).toFixed(6)),
-            }
-          }),
-        ]
-      : selected === null ? [] : [{ stage: 1, purpose: 'answer', provider: selected.provider, model: selected.model, estimatedCost: Number(selected.estimatedCost.toFixed(6)) }],
+    costBreakdown,
+    optimization: {
+      solver: 'quality-constrained greedy assignment with diversity penalty',
+      qualityFloor: QUALITY_FLOORS[complexity.band],
+      budgetUsd: Number(Number(budgetUsd) > 0 ? Number(budgetUsd) : 0),
+      cacheReadRatio: normalizedCacheRatios(cacheReadRatio, cacheWriteRatio).read,
+      cacheWriteRatio: normalizedCacheRatios(cacheReadRatio, cacheWriteRatio).write,
+      budgetExceeded,
+      constraintRelaxed,
+      baselineAllStrongCost: Number(baselineCost.toFixed(6)),
+      estimatedSavings: Number(savings.toFixed(4)),
+      distinctRoutes: usedRoutes.size,
+      liveBench: liveBench?.fetchedAt
+        ? { source: liveBench.source ?? 'livebench', fetchedAt: liveBench.fetchedAt, models: Object.keys(liveBench.models ?? {}).length, stale: String(liveBenchError).length > 0, error: String(liveBenchError || '') }
+        : { source: 'experimental-baseline', fetchedAt: null, models: 0, stale: false, error: String(liveBenchError || '') },
+    },
     reason,
     generatedAt: new Date().toISOString(),
   }

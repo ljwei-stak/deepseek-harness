@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { selectUnifiedUpdate } from './update-selection.mjs'
+import { DEFAULT_ROUTER_SETTINGS, MODEL_CATALOG } from '../shared/router.mjs'
 
 function messageFromError(error) {
   return error instanceof Error ? error.message : String(error)
@@ -19,12 +20,136 @@ function availabilityText(item) {
   return item.reason || '已是最新版。'
 }
 
-export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi }) {
+function numericPrice(value, fallback = 0) {
+  const number = Number(value)
+  return Number.isFinite(number) && number >= 0 ? number : fallback
+}
+
+function priceDraft(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {}
+  const next = {}
+  for (const [id, raw] of Object.entries(value)) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue
+    next[id] = {
+      input: numericPrice(raw.input),
+      output: numericPrice(raw.output),
+      cacheRead: numericPrice(raw.cacheRead),
+      cacheWrite: numericPrice(raw.cacheWrite),
+      currency: String(raw.currency || 'USD').toUpperCase(),
+    }
+  }
+  return next
+}
+
+function saveablePrices(value) {
+  return Object.fromEntries(Object.entries(priceDraft(value)).map(([id, row]) => [id, {
+    input: numericPrice(row.input),
+    output: numericPrice(row.output),
+    cacheRead: numericPrice(row.cacheRead),
+    cacheWrite: numericPrice(row.cacheWrite),
+    currency: String(row.currency || 'USD').toUpperCase(),
+  }]))
+}
+
+function baselinePrice(model, field) {
+  const key = field === 'input' ? 'costIn' : field === 'output' ? 'costOut' : field
+  return numericPrice(model?.[key])
+}
+
+export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingApi }) {
   const enabled = useEnabled(value => value)
   const [assessment, setAssessment] = React.useState(null)
   const [busy, setBusy] = React.useState('')
   const [notice, setNotice] = React.useState('')
   const [progress, setProgress] = React.useState(null)
+  const [pricing, setPricing] = React.useState({ ...DEFAULT_ROUTER_SETTINGS, pricing: {} })
+  const [pricingRevision, setPricingRevision] = React.useState(0)
+  const [pricingWritable, setPricingWritable] = React.useState(false)
+  const [pricingBusy, setPricingBusy] = React.useState(false)
+  const [pricingNotice, setPricingNotice] = React.useState('')
+  const [customModels, setCustomModels] = React.useState([])
+
+  React.useEffect(() => {
+    let active = true
+    if (typeof pricingApi?.load !== 'function') return undefined
+    void pricingApi.load().then(result => {
+      if (!active) return
+      const value = result?.value ?? DEFAULT_ROUTER_SETTINGS
+      const configuredEndpoint = String(value.liveBenchEndpoint || DEFAULT_ROUTER_SETTINGS.liveBenchEndpoint)
+      const loaded = {
+        ...DEFAULT_ROUTER_SETTINGS,
+        ...value,
+        liveBenchEndpoint: configuredEndpoint === 'https://livebench.ai/api/leaderboard' ? DEFAULT_ROUTER_SETTINGS.liveBenchEndpoint : configuredEndpoint,
+        pricing: priceDraft(value.pricing),
+      }
+      setPricing(loaded)
+      setPricingRevision(Number(result?.revision) || 0)
+      setPricingWritable(result?.writable === true && result?.available !== false)
+      setCustomModels(Object.keys(loaded.pricing).filter(id => !MODEL_CATALOG.some(model => model.id === id)))
+    }).catch(error => { if (active) setPricingNotice(`读取费用设置失败：${messageFromError(error)}`) })
+    return () => { active = false }
+  }, [pricingApi])
+
+  const updatePricing = (id, field, value) => {
+    setPricing(current => ({
+      ...current,
+      pricing: {
+        ...current.pricing,
+        [id]: {
+          ...(current.pricing[id] ?? (() => {
+            const model = MODEL_CATALOG.find(candidate => candidate.id === id)
+            return { input: baselinePrice(model, 'input'), output: baselinePrice(model, 'output'), cacheRead: 0, cacheWrite: 0, currency: 'USD' }
+          })()),
+          [field]: field === 'currency' ? String(value).toUpperCase() : value === '' ? 0 : numericPrice(value),
+        },
+      },
+    }))
+  }
+
+  const addCustomModel = () => {
+    const id = window.prompt?.('填写模型标识（例如 provider/model-name）')?.trim()
+    if (!id || MODEL_CATALOG.some(model => model.id === id) || customModels.includes(id)) return
+    setCustomModels(current => [...current, id])
+    setPricing(current => ({ ...current, pricing: { ...current.pricing, [id]: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, currency: 'USD' } } }))
+  }
+
+  const removeCustomModel = id => {
+    setCustomModels(current => current.filter(value => value !== id))
+    setPricing(current => {
+      const next = { ...current.pricing }
+      delete next[id]
+      return { ...current, pricing: next }
+    })
+  }
+
+  const savePricing = async () => {
+    if (typeof pricingApi?.save !== 'function' || !pricingWritable) {
+      setPricingNotice('当前环境的设置服务不可写。')
+      return
+    }
+    setPricingBusy(true)
+    setPricingNotice('正在保存模型费用与路由预算...')
+    try {
+      const next = {
+        liveBenchEndpoint: String(pricing.liveBenchEndpoint || DEFAULT_ROUTER_SETTINGS.liveBenchEndpoint),
+        liveBenchTtlMs: Math.max(30000, numericPrice(pricing.liveBenchTtlMs, DEFAULT_ROUTER_SETTINGS.liveBenchTtlMs)),
+        budgetUsd: numericPrice(pricing.budgetUsd),
+        cacheReadRatio: Math.max(0, Math.min(1, numericPrice(pricing.cacheReadRatio))),
+        cacheWriteRatio: Math.max(0, Math.min(1, numericPrice(pricing.cacheWriteRatio))),
+        pricing: saveablePrices(pricing.pricing),
+      }
+      const result = await pricingApi.save(next, pricingRevision)
+      setPricing(current => ({ ...current, ...next, pricing: priceDraft(result?.value?.pricing ?? next.pricing) }))
+      setPricingRevision(Number(result?.revision) || pricingRevision)
+      setPricingNotice('已保存。下一条集体合作任务会使用新的价格与预算。')
+    } catch (error) {
+      setPricingNotice(`保存失败：${messageFromError(error)}`)
+    } finally {
+      setPricingBusy(false)
+    }
+  }
+
+  const priceRows = [...MODEL_CATALOG, ...customModels.map(id => ({ id, aliases: [id], costIn: 0, costOut: 0 }))]
 
   React.useEffect(() => {
     if (typeof updateApi?.subscribe !== 'function') return undefined
@@ -146,6 +271,35 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi }) {
           aria-label="启用 GAL 视窗"
         />
       </label>
+
+      <details className="gvsv-pricing" aria-label="模型费用与路由预算">
+        <summary><strong>模型费用与路由预算</strong><span>用户价格优先；未填写模型沿用实验基线</span></summary>
+        <div className="gvsv-pricing-body">
+          <p className="gvsv-hint">价格单位为 USD / 1M tokens。这里只影响集体合作的任务分配和费用估计，不会改变单独会话的模型选择，也不会保存 API Key。</p>
+          <div className="gvsv-pricing-global">
+            <label>LiveBench 数据地址<input value={pricing.liveBenchEndpoint ?? ''} onChange={event => setPricing(current => ({ ...current, liveBenchEndpoint: event.target.value }))} placeholder="https://livebench.ai（自动发现最新榜单）" /></label>
+            <label>刷新周期（毫秒）<input type="number" min="30000" step="1000" value={pricing.liveBenchTtlMs ?? DEFAULT_ROUTER_SETTINGS.liveBenchTtlMs} onChange={event => setPricing(current => ({ ...current, liveBenchTtlMs: event.target.value }))} /></label>
+            <label>单任务预算（USD）<input type="number" min="0" step="0.000001" value={pricing.budgetUsd ?? 0} onChange={event => setPricing(current => ({ ...current, budgetUsd: event.target.value }))} /></label>
+            <label>缓存读取占输入比例<input type="number" min="0" max="1" step="0.05" value={pricing.cacheReadRatio ?? 0} onChange={event => setPricing(current => ({ ...current, cacheReadRatio: event.target.value }))} /></label>
+            <label>缓存写入占输入比例<input type="number" min="0" max="1" step="0.05" value={pricing.cacheWriteRatio ?? 0} onChange={event => setPricing(current => ({ ...current, cacheWriteRatio: event.target.value }))} /></label>
+          </div>
+          <div className="gvsv-price-table" role="table" aria-label="模型价格表">
+            <div className="gvsv-price-head" role="row"><span>模型</span><span>输入</span><span>输出</span><span>缓存读</span><span>缓存写</span><span>币种</span><span /></div>
+            {priceRows.map(model => {
+              const override = pricing.pricing?.[model.id]
+              return <div className="gvsv-price-row" role="row" key={model.id}>
+                <span title={model.id}>{model.id}</span>
+                {['input', 'output', 'cacheRead', 'cacheWrite'].map(field => <label key={field}><span className="gvsv-visually-hidden">{field}</span><input type="number" min="0" step="0.001" value={override?.[field] ?? baselinePrice(model, field)} onChange={event => updatePricing(model.id, field, event.target.value)} /></label>)}
+                <input aria-label={`${model.id} currency`} value={override?.currency ?? 'USD'} onChange={event => updatePricing(model.id, 'currency', event.target.value)} />
+                {customModels.includes(model.id) ? <button type="button" onClick={() => removeCustomModel(model.id)} aria-label={`删除 ${model.id}`}>删除</button> : <span />}
+              </div>
+            })}
+          </div>
+          <div className="gvsv-pricing-actions"><button type="button" onClick={addCustomModel}>新增模型价格</button><button type="button" disabled={pricingBusy || !pricingWritable} onClick={savePricing}>{pricingBusy ? '保存中...' : '保存费用与预算'}</button></div>
+          {pricingNotice !== '' && <p className="gvsv-notice" role="status">{pricingNotice}</p>}
+          {!pricingWritable && <p className="gvsv-footnote">当前 Host 没有提供可写设置服务，网页端可查看但不能保存价格。</p>}
+        </div>
+      </details>
 
       <section className="gvsv-update" aria-labelledby="gvsv-update-title">
         <div className="gvsv-update-head">

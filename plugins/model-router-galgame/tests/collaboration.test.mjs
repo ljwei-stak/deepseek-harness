@@ -38,7 +38,7 @@ function user(text) {
   }
 }
 
-test('complex collective turns execute three real routed stages and finish on synthesis', async () => {
+test('complex collective turns execute every planned routed stage and finish on synthesis', async () => {
   const { listeners } = fakeContext()
   const injected = []
   const agent = { inject: message => injected.push(message) }
@@ -51,28 +51,27 @@ test('complex collective turns execute three real routed stages and finish on sy
     step: 1,
   }, async () => ({ kind: 'enter', messages: [] }))
   assert.equal(first.kind, 'enter')
-  assert.match(first.messages.at(-1).content[0].text, /协作阶段 1\/3/)
+  const stageMatch = first.messages.at(-1).content[0].text.match(/协作阶段 1\/(\d+)/)
+  assert.ok(stageMatch)
+  const totalStages = Number(stageMatch[1])
+  assert.ok(totalStages >= 3)
   assert.match(first.messages.at(-2).content[0].text, /路由分析/)
 
   const request = listeners.get('agent/request')
   const firstConfig = await request({ agent, step: 1, signal }, async () => ({ provider: 'fallback', model: 'fallback', messages: [] }))
-  assert.equal(firstConfig.model, 'GPT 5.6 Sol')
+  assert.notEqual(firstConfig.model, 'fallback')
 
   const stopping = listeners.get('agent/turn-stopping')
+  for (let step = 2; step <= totalStages; step += 1) {
+    stopping({ agent, signal })
+    assert.equal(injected.length, step - 1)
+    assert.match(injected.at(-1).content[0].text, new RegExp(`协作阶段 ${step}/${totalStages}`))
+    const config = await request({ agent, step, signal }, async () => ({ provider: 'fallback', model: 'fallback', messages: [] }))
+    if (step === totalStages) assert.equal(config.model, 'DeepSeek V4 Pro')
+    else assert.notEqual(config.model, 'fallback')
+  }
   stopping({ agent, signal })
-  assert.equal(injected.length, 1)
-  assert.match(injected[0].content[0].text, /协作阶段 2\/3/)
-
-  const secondConfig = await request({ agent, step: 2, signal }, async () => ({ provider: 'fallback', model: 'fallback', messages: [] }))
-  assert.equal(secondConfig.model, 'DeepSeek V4 Pro')
-  stopping({ agent, signal })
-  assert.equal(injected.length, 2)
-  assert.match(injected[1].content[0].text, /协作阶段 3\/3/)
-
-  const finalConfig = await request({ agent, step: 3, signal }, async () => ({ provider: 'fallback', model: 'fallback', messages: [] }))
-  assert.equal(finalConfig.model, 'DeepSeek V4 Pro')
-  stopping({ agent, signal })
-  assert.equal(injected.length, 2)
+  assert.equal(injected.length, totalStages - 1)
 })
 
 test('persona is absent from worker stages and added only to the synthesis stage', async () => {
@@ -85,17 +84,15 @@ test('persona is absent from worker stages and added only to the synthesis stage
   }, async () => ({ kind: 'enter', messages: [] }))
   assert.equal(first.messages.some(message => message.content[0].text.includes('[Model Router Persona 表达层]')), false)
 
-  listeners.get('agent/turn-stopping')({ agent, signal })
-  const second = await listeners.get('agent/pre-step')({
-    agent, messages: [], signal, turn: 1, step: 2,
-  }, async () => ({ kind: 'enter', messages: [] }))
-  assert.equal(second.messages.some(message => message.content[0].text.includes('[Model Router Persona 表达层]')), false)
-
-  listeners.get('agent/turn-stopping')({ agent, signal })
-  const final = await listeners.get('agent/pre-step')({
-    agent, messages: [], signal, turn: 1, step: 3,
-  }, async () => ({ kind: 'enter', messages: [] }))
-  assert.equal(final.messages.filter(message => message.content[0].text.includes('[Model Router Persona 表达层]')).length, 1)
+  const stageMatch = first.messages.find(message => message.content[0].text.includes('协作阶段'))?.content[0].text.match(/协作阶段 1\/(\d+)/)
+  const totalStages = Number(stageMatch?.[1] ?? 3)
+  for (let step = 2; step <= totalStages; step += 1) {
+    listeners.get('agent/turn-stopping')({ agent, signal })
+    const next = await listeners.get('agent/pre-step')({
+      agent, messages: [], signal, turn: 1, step,
+    }, async () => ({ kind: 'enter', messages: [] }))
+    assert.equal(next.messages.filter(message => message.content[0].text.includes('[Model Router Persona 表达层]')).length, step === totalStages ? 1 : 0)
+  }
 })
 
 test('single-session persona does not create a routing plan or overwrite the native route', async () => {

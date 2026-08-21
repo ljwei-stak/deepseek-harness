@@ -132,18 +132,25 @@ export function AnalysisSummary({ plan }) {
         <div className="gv-analysis-metrics">
           <span>复杂度 <b>{Math.round((plan.complexity?.value ?? 0) * 100)}%</b></span>
           <span>类型 <b>{plan.taskType}</b></span>
+          {Array.isArray(plan.taskTypes) && plan.taskTypes.length > 1 && <span>业务方向 <b>{plan.taskTypes.join('、')}</b></span>}
           <span>质量 <b>{Math.round((weights.quality ?? 0) * 100)}%</b></span>
           <span>成本 <b>{Math.round((weights.cost ?? 0) * 100)}%</b></span>
           <span>延迟 <b>{Math.round((weights.latency ?? 0) * 100)}%</b></span>
+          <span>专长 <b>{Math.round((weights.specialty ?? 0) * 100)}%</b></span>
           <span>风险 <b>{Math.round((weights.risk ?? 0) * 100)}%</b></span>
+          <span>质量下限 <b>{Math.round((plan.optimization?.qualityFloor ?? 0) * 100)}%</b></span>
         </div>
         <div className="gv-analysis-cost">预计总费用 <b>${Number(plan.estimatedCost ?? 0).toFixed(6)}</b></div>
+        <div className="gv-analysis-cost">全高质量基线 <b>${Number(plan.optimization?.baselineAllStrongCost ?? 0).toFixed(6)}</b> · 预计节省 <b>{Math.round(Number(plan.optimization?.estimatedSavings ?? 0) * 100)}%</b></div>
+        <div className="gv-analysis-breakdown"><span>缓存读/写比例：{Math.round(Number(plan.optimization?.cacheReadRatio ?? 0) * 100)}% / {Math.round(Number(plan.optimization?.cacheWriteRatio ?? 0) * 100)}%</span><span>未填写比例时按普通输入计费</span></div>
+        <div className="gv-analysis-breakdown"><span>实际使用 {Number(plan.optimization?.distinctRoutes ?? 0)} 个模型</span><span>{plan.optimization?.budgetExceeded ? '预算超限：已在质量下限内尽量压缩' : '预算约束满足'}</span><span>{plan.optimization?.constraintRelaxed ? '部分质量下限未满足，已记录回退' : '质量约束满足'}</span></div>
+        <div className="gv-analysis-breakdown"><span>LiveBench：{plan.optimization?.liveBench?.fetchedAt ? `快照 ${formatTime(Number(plan.optimization.liveBench.fetchedAt))}${plan.optimization.liveBench.stale ? '（沿用上次快照）' : ''}` : '未完成联网核验，使用实验基线'}</span><span>数据源：{plan.optimization?.liveBench?.source ?? 'experimental-baseline'}</span></div>
         {Array.isArray(plan.costBreakdown) && plan.costBreakdown.length > 0 && (
           <div className="gv-analysis-breakdown">
-            {plan.costBreakdown.map(row => <span key={`${row.stage}-${row.provider}-${row.model}`}>阶段 {row.stage} · {row.model} · ${Number(row.estimatedCost ?? 0).toFixed(6)}</span>)}
+            {plan.costBreakdown.map(row => <span key={`${row.stage}-${row.provider}-${row.model}`}>阶段 {row.stage} · {row.model} · 输入 {row.inputTokens}（缓存读 {row.cacheReadTokens ?? 0} / 写 {row.cacheWriteTokens ?? 0}）/ 输出 {row.outputTokens} tokens · 质量 {Math.round(Number(row.quality ?? 0) * 100)}% · ${Number(row.estimatedCost ?? 0).toFixed(6)}</span>)}
           </div>
         )}
-        <div className="gv-analysis-candidates">{(plan.candidates ?? []).slice(0, 5).map(candidate => <span key={`${candidate.provider}/${candidate.model}`}>{candidate.model} · {Math.round(candidate.score * 100)}%</span>)}</div>
+        <div className="gv-analysis-candidates">{(plan.candidates ?? []).slice(0, 5).map(candidate => <span key={`${candidate.provider}/${candidate.model}`}>{candidate.model} · 综合 {Math.round(candidate.score * 100)}% · 质量 {Math.round(Number(candidate.quality ?? 0) * 100)}% · 专长 {Math.round(Number(candidate.specialty ?? 0) * 100)}% · ${Number(candidate.inputPrice ?? 0).toFixed(2)}/${Number(candidate.outputPrice ?? 0).toFixed(2)}</span>)}</div>
       </div>
     </details>
   )

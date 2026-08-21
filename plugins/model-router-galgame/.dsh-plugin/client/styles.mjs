@@ -693,6 +693,24 @@ export const CSS = `
 .gvsv-label { font-size: 13px; font-weight: 600; }
 .gvsv-hint { flex: 1; font-size: 11px; opacity: .6; line-height: 1.6; }
 .gvsv-row input[type="checkbox"] { accent-color: #8f7bff; width: 16px; height: 16px; }
+.gvsv-pricing { margin: 14px 0; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .025); }
+.gvsv-pricing summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; cursor: pointer; }
+.gvsv-pricing summary span { font-size: 10px; opacity: .58; }
+.gvsv-pricing-body { margin-top: 10px; }
+.gvsv-pricing-body > p { margin: 0 0 9px; }
+.gvsv-pricing-global { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(2, minmax(130px, 1fr)); gap: 8px; }
+.gvsv-pricing-global label { display: grid; gap: 4px; font-size: 10px; opacity: .8; }
+.gvsv-pricing input { min-width: 0; box-sizing: border-box; width: 100%; min-height: 28px; padding: 3px 6px; border: 1px solid rgba(255, 255, 255, .15); border-radius: 3px; background: rgba(0, 0, 0, .18); color: inherit; font: inherit; font-size: 11px; }
+.gvsv-price-table { margin-top: 10px; overflow-x: auto; }
+.gvsv-price-head, .gvsv-price-row { display: grid; grid-template-columns: minmax(150px, 1.6fr) repeat(4, minmax(70px, .7fr)) minmax(58px, .55fr) 48px; gap: 5px; align-items: center; min-width: 650px; }
+.gvsv-price-head { padding: 5px 6px; font-size: 10px; opacity: .55; }
+.gvsv-price-row { padding: 4px 6px; background: rgba(255, 255, 255, .025); border-top: 1px solid rgba(255, 255, 255, .06); }
+.gvsv-price-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.gvsv-price-row button { min-height: 26px; padding: 2px 5px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 3px; background: transparent; color: inherit; font: inherit; font-size: 10px; cursor: pointer; }
+.gvsv-pricing-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.gvsv-pricing-actions button { min-height: 30px; padding: 4px 10px; border: 1px solid rgba(143, 123, 255, .5); border-radius: 3px; background: rgba(143, 123, 255, .1); color: inherit; font: inherit; font-size: 11px; cursor: pointer; }
+.gvsv-pricing-actions button:disabled { opacity: .45; cursor: wait; }
+.gvsv-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .gvsv-update { padding: 13px 14px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 4px; }
 .gvsv-update-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .gvsv-update-head h3 { margin: 0; font-size: 14px; letter-spacing: 0; }
@@ -717,6 +735,7 @@ export const CSS = `
 @media (max-width: 680px) {
   .gvsv-update-head, .gvsv-version-row { align-items: stretch; flex-direction: column; }
   .gvsv-update-head .gvsv-link, .gvsv-version-row button { width: 100%; }
+  .gvsv-pricing-global { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

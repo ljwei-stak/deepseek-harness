@@ -23,7 +23,7 @@ import {
   extOf, embedFonts, extractFonts, createIdbFonts,
 } from './fonts.mjs'
 import { createObservable, createHistory, createStorage, loadJSON, saveJSON } from './store.mjs'
-import { MODEL_CATALOG } from '../shared/router.mjs'
+import { DEFAULT_ROUTER_SETTINGS, MODEL_CATALOG, MODEL_ROUTER_SETTINGS_NAMESPACE } from '../shared/router.mjs'
 // 默认预设场景：仓库根 gal-scene.json（编辑器导出的格式，内嵌被引用的素材/字体）。
 import presetScene from '../../gal-scene.json'
 
@@ -55,8 +55,38 @@ function createUpdateApi() {
   }
 }
 
+/** Browser settings bridge for the Host-owned model-router namespace. */
+function createPricingApi(ctx) {
+  const connection = ctx.get?.('connection')
+  const api = connection?.api?.settings
+  return {
+    async load() {
+      if (typeof api?.describe !== 'function') return { value: DEFAULT_ROUTER_SETTINGS, revision: 0, writable: false, available: false }
+      const response = await api.describe({})
+      if (!response?.result?.ok) throw new Error('无法读取模型路由设置')
+      const descriptor = (response.result.value?.namespaces ?? []).find(entry => entry.ns === MODEL_ROUTER_SETTINGS_NAMESPACE)
+      return {
+        value: descriptor?.value ?? DEFAULT_ROUTER_SETTINGS,
+        revision: descriptor?.revision ?? 0,
+        writable: response.result.value?.writable === true,
+        available: descriptor !== undefined,
+      }
+    },
+    async save(value, revision) {
+      if (typeof api?.replace !== 'function') throw new Error('当前环境不支持保存模型路由设置')
+      const response = await api.replace({
+        ns: MODEL_ROUTER_SETTINGS_NAMESPACE,
+        section: value,
+        ...(Number.isFinite(Number(revision)) ? { expectedRevision: Number(revision) } : {}),
+      })
+      if (!response?.result?.ok) throw new Error('模型路由设置保存失败')
+      return { value: response.result.value?.value ?? value, revision: response.result.value?.revision ?? revision }
+    },
+  }
+}
+
 /** 依赖服务：槽位系统（会话数据经槽位框架注入，无需直接消费 sessions）。 */
-export const inject = ['slots', 'sessions', 'modelDirectories', 'conversation']
+export const inject = ['slots', 'sessions', 'modelDirectories', 'conversation', 'connection']
 
 const PERSIST_KEY = 'gal-view:scene:v1'
 const ENABLED_KEY = 'gal-view:enabled'
@@ -682,6 +712,7 @@ export function apply(ctx) {
       hooks: { enabled: enabledSource },
       setEnabled,
       updateApi: createUpdateApi(),
+      pricingApi: createPricingApi(ctx),
     }),
   }, GalViewSettingsTab))
 }
