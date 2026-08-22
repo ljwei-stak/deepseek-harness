@@ -43,7 +43,9 @@ jobs:
 
       - name: Read desktop version
         id: desktop-version
-        run: echo "value=$(node -p \"require('./desktop/package.json').version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(node -p "require('./desktop/package.json').version")
+          echo "value=$version" >> "$GITHUB_OUTPUT"
 
       - name: Inspect packages and bundled tools
         run: |

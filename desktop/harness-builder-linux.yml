@@ -11,6 +11,8 @@ linux:
     - deb
     - rpm
 deb:
+  compression: gz
   artifactName: DeepSeek-Harness-ModelRouter-GALGame-${version}-Linux-amd64.${ext}
 rpm:
+  compression: gzip
   artifactName: DeepSeek-Harness-ModelRouter-GALGame-${version}-Linux-x86_64.${ext}
