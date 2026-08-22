@@ -6,7 +6,7 @@ English | [中文](2026-08-20-model-router-galgame.zh.md)
 
 ## Problem
 
-Users who connect several language-model providers need a visible and auditable way to select a cost-effective model for each request, distribute complex work across models, and continue the same sessions from a desktop client. The original Harness conversation surface does not represent model assignment as a GAL-style session or package the local runtime for one-click Windows installation.
+Users who connect several language-model providers need a visible and auditable way to select a cost-effective model for each request, distribute complex work across models, and continue the same sessions from a desktop client. The original Harness conversation surface does not represent model assignment as a GAL-style session or package the local runtime for installable Windows and Linux desktop distributions.
 
 ## Decision
 
@@ -14,11 +14,11 @@ The repository ships `plugins/model-router-galgame` as a removable Harness plugi
 
 The plugin records a concise routing explanation and stage reports through normal session messages. It does not request or display private chain-of-thought. Persona instructions are added only to the final answer stage and cannot alter routing, tools, permissions, code, formulas, or evidence handling.
 
-The Electron client in `desktop/` selects a hosted workspace or unpacks a bundled local Harness runtime. Build scripts create the runtime archive, Windows installer, independent plugin archive, release manifest, installer parts, and SHA256 list locally. Generated runtimes and installers stay outside Git history and are published as release assets.
+The Electron client in `desktop/` selects a hosted workspace or unpacks a bundled local Harness runtime. Platform build scripts embed the matching Node.js executable and portable pnpm launcher, then create the Windows installer or x64 Debian and RPM packages. Windows release tooling also creates the independent plugin archive, update manifest, installer parts, and SHA256 list. Generated runtimes and installers stay outside Git history and are published as release assets or short-lived CI artifacts.
 
 The plugin settings page checks only stable Releases from `ljwei-stak/deepseek-harness`. Its one-click action chooses the full-client update when available because that installer includes the matching plugin; if the client is current, it chooses the plugin-only update. Separate manual actions remain available, and every native operation requires confirmation. A plugin update verifies its hash, package identity, required files, and declared minimum desktop/runtime versions before storing it under a versioned user-data directory; an atomic `active.json` pointer selects the completed version. Local startup selects the newer compatible version between that pointer and the bundled plugin, then atomically mirrors it into the Harness profile, so a bundled older copy cannot overwrite an online update. A failed validation or profile copy leaves the prior active version usable.
 
-A full-client update downloads or reuses the manifest-named Release parts, reconstructs the installer, verifies the complete installer SHA256, and launches it only after all checks pass. API keys, provider settings, sessions, and plugin versions remain outside the application installation directory. Web-only deployments can inspect the project and Releases pages but cannot mutate local files.
+A Windows full-client update downloads or reuses the manifest-named Release parts, reconstructs the installer, verifies the complete installer SHA256, and launches it only after all checks pass. Linux directs users to the Releases page and leaves DEB or RPM installation to the system package manager instead of requesting elevated privileges inside Electron. API keys, provider settings, sessions, and plugin versions remain outside the application installation directory. Web-only deployments can inspect the project and Releases pages but cannot mutate local files.
 
 Third-party inspiration and character-art sources are attributed in the root and plugin READMEs. Character images are not represented as MIT-licensed project code and require a separate rights check before commercial use or redistribution.
 
@@ -28,7 +28,7 @@ Third-party inspiration and character-art sources are attributed in the root and
 
 **Select one fixed model for collective mode.** This would hide task-specialty and cost differences and would not exercise multi-model collaboration. The ranked staged plan makes each assignment and fallback visible.
 
-**Commit the installer and local runtime archive.** These generated files are large and would permanently expand repository history. Release assets preserve downloadable binaries without making source clones carry every build.
+**Commit desktop packages and the local runtime archive.** These generated files are large and would permanently expand repository history. Release assets and short-lived CI artifacts preserve downloadable binaries without making source clones carry every build.
 
 **Run `git pull` or Sync Fork inside an installed client.** A source update does not define a compatible plugin/runtime/desktop tuple and would require shipping repository credentials and build tools. Versioned Release assets make the maintainer's synchronized fork the publication point without turning end-user clients into Git worktrees.
 
@@ -38,4 +38,4 @@ Third-party inspiration and character-art sources are attributed in the root and
 
 ## Consequences
 
-The plugin can evolve independently from the Harness core and can be installed or removed per profile. Routing is reproducible from the catalog and request, while a live provider directory determines which routes can actually run. Plugin-only publication remains limited by its declared minimum desktop and runtime versions; an incompatible plugin requires the full client first. Every public version requires one internally consistent Release manifest and assets, while failed or interrupted downloads consume user-data disk space but do not replace a working installation. Benchmark quality and pricing data remain explicit catalog inputs and must be refreshed when their sources change. Third-party visual assets retain their own licensing requirements.
+The plugin can evolve independently from the Harness core and can be installed or removed per profile. Routing is reproducible from the catalog and request, while a live provider directory determines which routes can actually run. Plugin-only publication remains limited by its declared minimum desktop and runtime versions; an incompatible plugin requires the full client first. Windows, Debian, and RPM packages require separate native builds even when they share a desktop version. Every public version requires internally consistent assets, while failed or interrupted downloads consume user-data disk space but do not replace a working installation. Benchmark quality and pricing data remain explicit catalog inputs and must be refreshed when their sources change. Third-party visual assets retain their own licensing requirements.

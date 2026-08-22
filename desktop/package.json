@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-desktop",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "private": true,
   "description": "DeepSeek Harness desktop client with independent Model Router + GALGame and dsh-market plugins",
   "main": "harness-main.js",
@@ -10,7 +10,8 @@
     "test": "node --test tests/*.test.js",
     "test:e2e": "playwright test",
     "pack": "electron-builder --dir",
-    "dist:harness:win": "electron-builder --config harness-builder.yml --win nsis"
+    "dist:harness:win": "electron-builder --config harness-builder.yml --win nsis",
+    "dist:harness:linux": "electron-builder --config harness-builder-linux.yml --linux deb rpm --x64"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

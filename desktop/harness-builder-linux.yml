@@ -1,0 +1,16 @@
+extends: ./harness-builder.yml
+linux:
+  icon: assets/app-icon.png
+  category: Development
+  maintainer: Jianwei Li <ljwei-stak@users.noreply.github.com>
+  vendor: ljwei-stak
+  executableName: deepseek-harness
+  synopsis: Multi-model agent workspace with Model Router and GALGame view
+  description: DeepSeek Harness desktop client with a bundled local runtime, Model Router + GALGame, and the independent plugin market.
+  target:
+    - deb
+    - rpm
+deb:
+  artifactName: DeepSeek-Harness-ModelRouter-GALGame-${version}-Linux-amd64.${ext}
+rpm:
+  artifactName: DeepSeek-Harness-ModelRouter-GALGame-${version}-Linux-x86_64.${ext}

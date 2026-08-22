@@ -123,7 +123,8 @@ function reserveLocalPort() {
 
 function runExtractor(archive, target) {
   return new Promise((resolve, reject) => {
-    const extractor = spawn('tar.exe', ['-xzf', archive, '-C', target], {
+    const tar = process.platform === 'win32' ? 'tar.exe' : 'tar'
+    const extractor = spawn(tar, ['-xzf', archive, '-C', target], {
       windowsHide: true,
       stdio: ['ignore', 'ignore', 'pipe'],
     })
@@ -443,14 +444,16 @@ async function stopLocalHarness() {
   localHarnessProcess = null
   if (!child || child.exitCode !== null) return
   const exited = new Promise(resolve => {
-    const timeout = setTimeout(() => {
-      debugLog(`Local Harness did not exit within 10 seconds: pid=${child.pid ?? 'unknown'}`)
-      resolve()
-    }, 10_000)
-    child.once('exit', () => {
+    const onExit = () => {
       clearTimeout(timeout)
-      resolve()
-    })
+      resolve(true)
+    }
+    const timeout = setTimeout(() => {
+      child.removeListener('exit', onExit)
+      debugLog(`Local Harness did not exit within 10 seconds: pid=${child.pid ?? 'unknown'}`)
+      resolve(false)
+    }, 10_000)
+    child.once('exit', onExit)
   })
   child.kill()
   if (process.platform === 'win32' && child.pid) {
@@ -460,7 +463,11 @@ async function stopLocalHarness() {
     })
     terminator.unref()
   }
-  await exited
+  const graceful = await exited
+  if (!graceful && process.platform !== 'win32' && child.exitCode === null) {
+    debugLog(`Force stopping local Harness: pid=${child.pid ?? 'unknown'}`)
+    child.kill('SIGKILL')
+  }
 }
 
 function currentUpdateVersions() {
@@ -571,7 +578,21 @@ function launchInstaller(filename) {
 }
 
 async function installDesktopUpdate() {
-  if (process.platform !== 'win32') throw new Error('一键安装完整客户端目前仅支持 Windows')
+  if (process.platform !== 'win32') {
+    const confirmation = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['打开发布页', '取消'],
+      defaultId: 0,
+      cancelId: 1,
+      title: '更新 DeepSeek Harness',
+      message: 'Linux 客户端由系统包管理器更新',
+      detail: '请从项目发布页下载新版 DEB 或 RPM 安装包，再使用系统的软件安装器完成升级。用户配置和历史任务会保留在用户目录。',
+      noLink: true,
+    })
+    if (confirmation.response !== 0) return { cancelled: true }
+    await shell.openExternal(updater.RELEASES_URL)
+    return { manual: true, message: '已打开项目发布页。' }
+  }
   const confirmation = await dialog.showMessageBox(mainWindow, {
     type: 'question',
     buttons: ['下载并安装', '取消'],

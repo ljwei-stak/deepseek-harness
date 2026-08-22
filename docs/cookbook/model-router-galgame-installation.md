@@ -66,7 +66,9 @@ Select the provider and model in the Harness model selector, then send the reque
 
 ## Desktop application
 
-The Windows installer contains the Harness runtime, the Web client, and the matching plugin bundle. Install the `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe` asset, start the application, and choose **Server** to connect to a remote Harness or **Local** to use the bundled runtime. The desktop update control updates the complete client and bundled plugin when the installed client is out of date; otherwise it updates the plugin package only.
+The desktop packages contain the Harness runtime, the Web client, and the matching plugin bundle. Windows uses `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe`; Debian and Ubuntu use `DeepSeek-Harness-ModelRouter-GALGame-<version>-Linux-amd64.deb`; Fedora, RHEL, and openEuler use `DeepSeek-Harness-ModelRouter-GALGame-<version>-Linux-x86_64.rpm`. Start the application after installation, then choose **Server** to connect to a remote Harness or **Local** to use the bundled platform-native Node.js runtime.
+
+Install a downloaded Debian package with `sudo apt install ./<package>.deb`, or an RPM package with `sudo dnf install ./<package>.rpm`. Both formats install a desktop application entry. The Windows update control can start a verified full-client installer. Linux opens the project Releases page so the user can install the signed or checksum-verified package through the system package manager; it does not request administrator privileges from inside the application. Plugin-only updates remain available on every desktop platform.
 
 The installer is not required for native Web profile installation. A plugin installed with `dsh plugin --profile web add` is owned by that Harness profile and is updated independently from a desktop installation.
 
@@ -81,7 +83,7 @@ To remove the plugin, use the native plugin manager for the Web profile, or remo
 - **The plugin is not listed:** confirm that the path passed to `dsh plugin --profile web add` contains `package.json` and `.dsh-plugin/index.mjs`, then restart the same profile that received the plugin.
 - **A plan shows no LiveBench data:** check the endpoint and network access. The router remains usable with the previous snapshot or experimental baseline, and the summary explicitly marks the missing network verification.
 - **A model is not selected:** verify that its provider is enabled, its model identifier matches the native catalog, and its manual price entry uses the exact `provider/model` key when a gateway is involved.
-- **A desktop update fails:** close running Harness windows, retry the update, or install the newest complete installer. Preserve the user data directory when uninstalling so session archives and settings remain available.
+- **A desktop update fails:** close running Harness windows, retry the update, or install the newest complete package. On Linux, download the matching DEB or RPM from Releases and update it with the system package manager. Preserve the user data directory when uninstalling so session archives and settings remain available.
 - **An image request fails:** use a provider that advertises vision capability in the native catalog and attach the image through the Harness attachment control; unsupported binary formats remain marked as unparsed instead of being silently sent as text.
 
 ## Security and reproducibility

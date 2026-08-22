@@ -6,7 +6,7 @@ English | [中文](2026-08-22-independent-plugin-market.zh.md)
 
 ## Problem
 
-The desktop client needs a discoverable plugin market and a package manager that works on a clean Windows installation. Treating that market as a Model Router feature couples unrelated plugin versions, documentation, updates, and failure states.
+The desktop client needs a discoverable plugin market and a package manager that works on clean Windows and Linux installations. Treating that market as a Model Router feature couples unrelated plugin versions, documentation, updates, and failure states.
 
 ## Decision
 
@@ -14,7 +14,7 @@ The desktop client needs a discoverable plugin market and a package manager that
 
 The repository keeps the reviewable snapshot in `plugins/dsh-market` and pins the matching registry package in the root runtime dependency closure. The desktop Web profile inserts `dshmarket` in its own patch row beside `model-router-galgame`; neither package imports the other. Runtime assembly materializes the repository-only Model Router package, preserves dshmarket's pnpm dependency closure, and verifies both packages' required Host and Web files.
 
-Desktop `0.4.12` carries Node.js, `pnpm@11.7.0`, and a launcher placed before the inherited `PATH`. Before boot, it atomically materializes dshmarket and its recursive production dependency closure under the user profile instead of relying on package resolution from the extracted application directory. Existing complete market installations at the bundled version or newer remain active. Market operations therefore work without a system Node toolchain. Community dependencies and market state remain in the user's Web profile. Model Router remains version `0.4.10`; its independent updater does not replace the market package.
+Desktop `0.4.13` carries platform-native Node.js, `pnpm@11.7.0`, and a Windows or POSIX launcher placed before the inherited `PATH`. Before boot, it atomically materializes dshmarket and its recursive production dependency closure under the user profile instead of relying on package resolution from the extracted application directory. Existing complete market installations at the bundled version or newer remain active. Market operations therefore work without a system Node toolchain. Community dependencies and market state remain in the user's Web profile. Model Router remains version `0.4.10`; its independent updater does not replace the market package.
 
 The [installation tutorial](../../../../docs/cookbook/dsh-market-installation.md) owns native and desktop procedures. The market catalog provides discovery metadata, while users remain responsible for reviewing executable third-party packages.
 

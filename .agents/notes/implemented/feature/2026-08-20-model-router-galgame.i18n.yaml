@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-20-model-router-galgame.md
-2026-08-20-model-router-galgame.md: fe91bc177c041adb24f66746144ef06f6c839ba6
-2026-08-20-model-router-galgame.zh.md: 8151451f324b1671506632746a4193ac0215cbf1
+2026-08-20-model-router-galgame.md: 6817d21346b5aed8c01396b9da477246ca9a1c2a
+2026-08-20-model-router-galgame.zh.md: f3cc11ab692e8f969b62c9cab4a1bed8916ef979

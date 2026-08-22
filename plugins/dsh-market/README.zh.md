@@ -16,7 +16,7 @@ pnpm dsh plugin --profile web add ./plugins/dsh-market
 
 ## 桌面端适配
 
-Windows 桌面本地运行时把本插件作为独立 Web profile bundle，与 Model Router + GALGame 并列加载。桌面端 `0.4.12` 会在本地 Harness 启动前，以原子方式把市场及其递归生产依赖安装到用户 profile。桌面端同时携带 Node.js 和 `pnpm@11.7.0`，因此全新电脑不需要系统预装 Node 工具链，也能在本地模式安装市场插件。市场安装的插件仍作为用户 Web profile 的依赖保存，不会写入任一内置插件目录。
+Windows 与 Linux 桌面本地运行时把本插件作为独立 Web profile bundle，与 Model Router + GALGame 并列加载。桌面端 `0.4.13` 会在本地 Harness 启动前，以原子方式把市场及其递归生产依赖安装到用户 profile。桌面端同时携带平台原生 Node.js 和 `pnpm@11.7.0`，因此全新电脑不需要系统预装 Node 工具链，也能在本地模式安装市场插件。市场安装的插件仍作为用户 Web profile 的依赖保存，不会写入任一内置插件目录。
 
 ## 更新快照
 

@@ -16,7 +16,7 @@ Open **Settings -> Plugin Market**. The market can browse the curated catalog, i
 
 ## Desktop integration
 
-The Windows desktop runtime loads this plugin as a separate Web profile bundle beside Model Router + GALGame. Desktop `0.4.12` atomically installs the market and its recursive production dependencies into the user profile before local Harness boots. It also carries Node.js and `pnpm@11.7.0`, so local mode can install market packages on a clean computer without a system Node toolchain. Plugins installed through the market remain dependencies of the user's Web profile and are not written into either bundled plugin directory.
+The Windows and Linux desktop runtimes load this plugin as a separate Web profile bundle beside Model Router + GALGame. Desktop `0.4.13` atomically installs the market and its recursive production dependencies into the user profile before local Harness boots. It carries platform-native Node.js and `pnpm@11.7.0`, so local mode can install market packages on a clean computer without a system Node toolchain. Plugins installed through the market remain dependencies of the user's Web profile and are not written into either bundled plugin directory.
 
 ## Updating the snapshot
 

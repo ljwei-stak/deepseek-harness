@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-桌面客户端需要一个可以发现插件的市场，以及能在全新 Windows 安装环境运行的包管理器。把市场当成 Model Router 的功能会耦合两个无关插件的版本、文档、更新和故障状态。
+桌面客户端需要一个可以发现插件的市场，以及能在全新 Windows 与 Linux 安装环境运行的包管理器。把市场当成 Model Router 的功能会耦合两个无关插件的版本、文档、更新和故障状态。
 
 ## Decision
 
@@ -14,7 +14,7 @@ Status: implemented
 
 仓库在 `plugins/dsh-market` 保存可审查快照，并在根运行时依赖闭包固定安装对应的 registry 包。桌面 Web profile 在 `model-router-galgame` 旁边使用独立补丁行插入 `dshmarket`，两个包互不导入。运行时组装会实体化仅存在于仓库的 Model Router 包、保留 dshmarket 的 pnpm 依赖闭包，并检查两个包必需的 Host 与 Web 文件。
 
-桌面端 `0.4.12` 携带 Node.js、`pnpm@11.7.0` 与位于继承 `PATH` 之前的启动器。启动前，客户端会在用户 profile 下以原子方式实体化 dshmarket 及其递归生产依赖闭包，而不依赖从解压后的应用目录解析程序包；已经完整安装且版本不低于内置版本的市场会继续使用。因此市场操作不需要系统 Node 工具链。社区依赖和市场状态仍保存在用户自己的 Web profile 中。Model Router 保持 `0.4.10`，其独立更新器不会替换市场包。
+桌面端 `0.4.13` 携带平台原生 Node.js、`pnpm@11.7.0`，以及位于继承 `PATH` 之前的 Windows 或 POSIX 启动器。启动前，客户端会在用户 profile 下以原子方式实体化 dshmarket 及其递归生产依赖闭包，而不依赖从解压后的应用目录解析程序包；已经完整安装且版本不低于内置版本的市场会继续使用。因此市场操作不需要系统 Node 工具链。社区依赖和市场状态仍保存在用户自己的 Web profile 中。Model Router 保持 `0.4.10`，其独立更新器不会替换市场包。
 
 [安装教程](../../../../docs/cookbook/dsh-market-installation.zh.md)负责原生与桌面操作步骤。市场目录提供发现信息，用户仍需自行审查可执行第三方程序包。
 

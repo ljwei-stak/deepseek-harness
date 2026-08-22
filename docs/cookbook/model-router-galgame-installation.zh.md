@@ -66,7 +66,9 @@
 
 ## 桌面端应用
 
-Windows 安装包包含 Harness 运行时、Web 客户端和匹配版本的插件。安装 `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe` 后启动应用，选择“服务器端”连接远程 Harness，或选择“本地”使用内置运行时。桌面端检测到客户端过期时，一键更新会同时更新完整客户端和内置插件；客户端仍兼容时只更新插件包。
+桌面安装包包含 Harness 运行时、Web 客户端和匹配版本的插件。Windows 使用 `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe`；Debian 与 Ubuntu 使用 `DeepSeek-Harness-ModelRouter-GALGame-<version>-Linux-amd64.deb`；Fedora、RHEL 与 openEuler 使用 `DeepSeek-Harness-ModelRouter-GALGame-<version>-Linux-x86_64.rpm`。安装后启动应用，选择“服务器端”连接远程 Harness，或选择“本地”使用内置的平台原生 Node.js 运行时。
+
+下载后，可以使用 `sudo apt install ./<package>.deb` 安装 Debian 包，或使用 `sudo dnf install ./<package>.rpm` 安装 RPM 包，两种格式都会创建桌面应用入口。Windows 更新控件可以启动经过校验的完整客户端安装程序；Linux 会打开项目 Releases 页面，由用户通过系统包管理器安装经过签名或校验和核验的程序包，不会在应用内部请求管理员权限。所有桌面平台都可以继续使用独立插件更新。
 
 桌面安装包不是原生 Web profile 安装的前置条件。通过 `dsh plugin --profile web add` 安装的插件归对应 Harness profile 管理，与桌面端安装相互独立。
 
@@ -81,7 +83,7 @@ Windows 安装包包含 Harness 运行时、Web 客户端和匹配版本的插�
 - **插件列表中没有插件：** 确认传给 `dsh plugin --profile web add` 的目录同时包含 `package.json` 和 `.dsh-plugin/index.mjs`，并重启实际安装插件的同一个 profile。
 - **路由方案没有 LiveBench 数据：** 检查地址和网络访问。路由器仍会使用上一次快照或实验基线，并在摘要中明确标记未完成联网核验。
 - **没有选出模型：** 确认 provider 已启用、模型标识与原生目录一致；使用中转站时，价格条目要使用准确的 `provider/model` 键。
-- **桌面更新失败：** 关闭正在运行的 Harness 窗口后重试，或安装最新完整安装包。卸载时保留用户数据目录，以保留会话存档和设置。
+- **桌面更新失败：** 关闭正在运行的 Harness 窗口后重试，或安装最新完整程序包。Linux 应从 Releases 下载对应的 DEB 或 RPM，再通过系统包管理器升级。卸载时保留用户数据目录，以保留会话存档和设置。
 - **图片任务失败：** 使用原生目录中声明支持视觉能力的模型，并通过 Harness 附件控件添加图片；不支持的二进制格式会保持“未解析”状态，不会被静默当作文本发送。
 
 ## 安全与可复现性
