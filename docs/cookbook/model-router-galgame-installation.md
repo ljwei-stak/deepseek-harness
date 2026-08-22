@@ -34,18 +34,6 @@ You need a supported Node.js version, pnpm, a working DeepSeek Harness checkout,
 
 4. Restart the Harness Web profile. Open the plugin settings page and confirm that `Model Router + GALGame` appears in the installed plugin list.
 
-## Install the plugin market
-
-The Windows desktop client already includes `dshmarket@1.18.0` and a portable `pnpm`. In local mode, open **Settings -> Plugin Market**; no separate market installation or system package manager is required.
-
-For a native Harness checkout, install the market into the Web profile and restart Harness:
-
-```powershell
-pnpm dsh plugin --profile web add dshmarket@1.18.0
-```
-
-The market page can browse the community catalog, inspect package metadata, install or update plugins, enable or disable compatible entries, reorder community bundles, create backups, and export diagnostics. Market-installed plugins and their state belong to the user's Web profile, not the Model Router plugin directory.
-
 ## Configure providers and routing data
 
 1. Configure one or more providers in the native Harness model settings and verify that each provider can answer a small request.
@@ -78,7 +66,7 @@ Select the provider and model in the Harness model selector, then send the reque
 
 ## Desktop application
 
-The Windows installer contains the Harness runtime, the Web client, the matching Model Router bundle, `dshmarket`, and a portable `pnpm`. Install the `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe` asset, start the application, and choose **Server** to connect to a remote Harness or **Local** to use the bundled runtime. The desktop update control updates the complete client and bundled components when the installed client is out of date; otherwise it updates the Model Router plugin package only. A bundled market version changes through a complete client update; community plugins installed by the market keep their own update lifecycle.
+The Windows installer contains the Harness runtime, the Web client, and the matching plugin bundle. Install the `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe` asset, start the application, and choose **Server** to connect to a remote Harness or **Local** to use the bundled runtime. The desktop update control updates the complete client and bundled plugin when the installed client is out of date; otherwise it updates the plugin package only.
 
 The installer is not required for native Web profile installation. A plugin installed with `dsh plugin --profile web add` is owned by that Harness profile and is updated independently from a desktop installation.
 
@@ -95,8 +83,7 @@ To remove the plugin, use the native plugin manager for the Web profile, or remo
 - **A model is not selected:** verify that its provider is enabled, its model identifier matches the native catalog, and its manual price entry uses the exact `provider/model` key when a gateway is involved.
 - **A desktop update fails:** close running Harness windows, retry the update, or install the newest complete installer. Preserve the user data directory when uninstalling so session archives and settings remain available.
 - **An image request fails:** use a provider that advertises vision capability in the native catalog and attach the image through the Harness attachment control; unsupported binary formats remain marked as unparsed instead of being silently sent as text.
-- **The market says pnpm is unavailable:** install `pnpm` for a native Harness checkout and restart it. The packaged Windows client should report `pnpm: true` from `/dsh-market/status`; reinstall the complete client if its bundled tools are missing.
 
 ## Security and reproducibility
 
-Review provider URLs and prices before enabling routing. Prices are user-provided reference data for estimates, not a permanent statement of vendor pricing. Keep API keys in the Harness credential store, and verify release checksums before distributing an installer or plugin archive. Market packages execute with the Harness process's permissions; review their repositories, identities, build scripts, and licenses, install only trusted sources, and back up the Web profile before adding unfamiliar code. Catalog inclusion is not a security endorsement.
+Review provider URLs and prices before enabling routing. Prices are user-provided reference data for estimates, not a permanent statement of vendor pricing. Keep API keys in the Harness credential store, and verify release checksums before distributing an installer or plugin archive.

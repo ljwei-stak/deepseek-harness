@@ -2,7 +2,7 @@
   "name": "deepseek-harness-desktop",
   "version": "0.4.11",
   "private": true,
-  "description": "DeepSeek Harness desktop client with Model Router + GALGame plugin",
+  "description": "DeepSeek Harness desktop client with independent Model Router + GALGame and dsh-market plugins",
   "main": "harness-main.js",
   "scripts": {
     "prestart": "npm --prefix ../apps/web run build",

@@ -11,16 +11,16 @@ $desktopRoot = Join-Path $projectRoot 'desktop'
 $pluginPackage = Get-Content -Raw (Join-Path $pluginRoot 'package.json') | ConvertFrom-Json
 $desktopPackage = Get-Content -Raw (Join-Path $desktopRoot 'package.json') | ConvertFrom-Json
 
-if (-not $Version) { $Version = [string]$pluginPackage.version }
+if (-not $Version) { $Version = [string]$desktopPackage.version }
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must use x.y.z format: $Version" }
-if ([string]$pluginPackage.version -ne $Version) { throw "Plugin package version is $($pluginPackage.version), expected $Version." }
 if ([string]$desktopPackage.version -ne $Version) { throw "Desktop package version is $($desktopPackage.version), expected $Version." }
 if ($PartSizeMiB -lt 5) { throw 'PartSizeMiB must be at least 5.' }
 
+$pluginVersion = [string]$pluginPackage.version
 $installerName = "DeepSeek-Harness-ModelRouter-GALGame-Setup-$Version-Windows-x64.exe"
 $installer = Join-Path (Join-Path $desktopRoot 'dist') $installerName
 $blockmap = "$installer.blockmap"
-$pluginArchiveName = "Model-Router-GALGame-Plugin-$Version.tar.gz"
+$pluginArchiveName = "Model-Router-GALGame-Plugin-$pluginVersion.tar.gz"
 $manifestName = 'model-router-galgame-update.json'
 $outputRoot = Join-Path (Join-Path $projectRoot 'build\release') $Version
 
@@ -86,7 +86,7 @@ $manifest = [ordered]@{
     schemaVersion = 1
     releaseVersion = $Version
     plugin = [ordered]@{
-        version = $Version
+        version = $pluginVersion
         asset = $pluginArchiveName
         sha256 = $pluginHash
         minDesktopVersion = [string]$pluginPackage.dshUpdater.minDesktopVersion

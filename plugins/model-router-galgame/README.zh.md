@@ -17,7 +17,6 @@
 - **附件与多模态**：图片使用原生多模态管线，Markdown/TXT/JSON/代码文件提取为文本；PDF/DOCX 等二进制文件保留解析状态，不会静默伪造内容。
 - **OpenCode Zen**：官方站点覆盖会自动恢复模型目录所需的 `/zen`、`/zen/v1` 端点；自定义网关不受影响。
 - **更新与桌面端**：插件设置页提供 GitHub Release 检查和一键更新；客户端过期时更新完整客户端及内置插件，否则只更新插件。网页端无法写入本机文件时会打开 Releases 页面。
-- **插件市场适配**：桌面端 Web profile 内置 [`dshmarket@1.18.0`](https://github.com/dsh-market/dsh-market)。在“设置 -> 插件市场”中可以浏览、核验、安装、更新、禁用、排序、备份和诊断社区插件。Windows 客户端同时携带固定版本的 `pnpm`，全新安装不依赖系统预装包管理器。
 
 ## 安装
 
@@ -28,12 +27,6 @@ dsh plugin --profile web add <plugin-directory>
 ```
 
 重启 Harness 后即可使用。没有可用模型时插件保留原生选择，不阻塞对话。
-
-社区插件市场与本插件相互独立。原生 Harness 用户可以把市场安装到同一个 Web profile：
-
-```text
-dsh plugin --profile web add dshmarket@1.18.0
-```
 
 完整的原生安装、配置、桌面端、更新和故障排查步骤见[安装操作说明](../../docs/cookbook/model-router-galgame-installation.zh.md)。
 
@@ -82,6 +75,4 @@ GAL 交互方式参考 [`Ayase34/gal-view`](https://github.com/Ayase34/gal-view)
 
 ## 桌面端
 
-仓库根目录 `desktop/` 提供服务器端/本地运行模式切换和 Windows 打包配置。桌面窗口、启动器与 Windows 安装包使用 `DeepSeek_Harness娘.avif` 生成的方形图标。本地运行时包含 Model Router + GALGame、`dshmarket` 和便携版 `pnpm`；通过市场安装的插件保存在用户自己的 Web profile 中。插件源码、设置 schema 和构建脚本均保留在仓库，安装包通过项目 Release 发布。
-
-插件市场安装的是可执行第三方程序包。安装前应检查代码仓库、包身份、需要放行的构建脚本和许可证，并且只安装可信来源。市场目录只提供发现信息，不代表 DeepSeek Harness、本仓库或 Model Router 插件对第三方代码作出安全背书。
+仓库根目录 `desktop/` 提供服务器端/本地运行模式切换和 Windows 打包配置。桌面窗口、启动器与 Windows 安装包使用 `DeepSeek_Harness娘.avif` 生成的方形图标。插件源码、设置 schema 和构建脚本均保留在仓库，安装包通过项目 Release 发布。

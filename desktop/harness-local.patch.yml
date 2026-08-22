@@ -11,8 +11,8 @@
     - id: model-router-galgame
       name: model-router-galgame
 
-# Ship the community plugin market as a regular Host + Web bundle. Installed
-# plugins still belong to the user's Web profile and can be removed there.
+# The market is an independent profile bundle. It can be disabled or updated
+# without changing the Model Router package mounted above.
 - insert:
     - id: dsh-market
       name: dshmarket

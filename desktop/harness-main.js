@@ -9,7 +9,8 @@ const DEFAULT_REMOTE_ORIGIN = process.env.DEEPSEEK_HARNESS_REMOTE_ORIGIN || 'htt
 const DEFAULT_REMOTE_PATH = process.env.DEEPSEEK_HARNESS_REMOTE_PATH || '/harness/'
 const CONFIG_FILENAME = 'deepseek-harness-client.json'
 const LOCAL_RUNTIME_VERSION = '0.4.11'
-const PLUGIN_VERSION = '0.4.11'
+const PLUGIN_VERSION = '0.4.10'
+const MARKET_VERSION = '1.18.0'
 const RELEASE_CACHE_MS = 5 * 60_000
 const RETRYABLE_FILESYSTEM_ERRORS = new Set(['EACCES', 'EBUSY', 'ENOTEMPTY', 'EPERM'])
 
@@ -153,6 +154,10 @@ function validateExtractedRuntime(root) {
   const missing = runtimeRequiredFiles(root).filter((candidate) => !fs.existsSync(candidate))
   if (missing.length > 0) {
     throw new Error(`安装包解压不完整，缺少：${missing.map((candidate) => path.relative(root, candidate)).join('、')}`)
+  }
+  const marketPackage = JSON.parse(fs.readFileSync(path.join(root, 'node_modules', 'dshmarket', 'package.json'), 'utf8'))
+  if (marketPackage.version !== MARKET_VERSION) {
+    throw new Error(`插件市场版本不匹配：需要 ${MARKET_VERSION}，实际为 ${marketPackage.version || '未知'}`)
   }
 }
 
@@ -340,9 +345,8 @@ function localNodePath() {
 
 function localHarnessPath(runtimeRoot) {
   const separator = process.platform === 'win32' ? ';' : ':'
-  const packagedTools = bundledResource('harness-tools')
   const candidates = [
-    packagedTools,
+    bundledResource('harness-tools'),
     path.dirname(localNodePath()),
     path.join(runtimeRoot, 'node_modules', '.bin'),
   ].filter((candidate) => fs.existsSync(candidate))

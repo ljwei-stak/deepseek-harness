@@ -12,10 +12,16 @@ $toolsTargetDirectory = Join-Path $buildRoot 'harness-tools'
 $pnpmSource = Join-Path $projectRoot 'node_modules\pnpm'
 $pnpmTarget = Join-Path $toolsTargetDirectory 'pnpm'
 $pnpmLauncher = Join-Path $toolsTargetDirectory 'pnpm.cmd'
-$pluginSource = Join-Path $projectRoot 'plugins\model-router-galgame'
-$pluginRuntime = Join-Path $projectRoot 'node_modules\model-router-galgame'
+$marketSource = Join-Path $projectRoot 'plugins\dsh-market'
 $nodeModulesRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'node_modules'))
-$pluginRuntimeFull = [IO.Path]::GetFullPath($pluginRuntime)
+$runtimePackages = @(
+    @{
+        Description = 'Model Router plugin'
+        Source = Join-Path $projectRoot 'plugins\model-router-galgame'
+        Runtime = Join-Path $projectRoot 'node_modules\model-router-galgame'
+        Required = @('package.json', '.dsh-plugin\index.mjs', '.dsh-plugin\client.js')
+    }
+)
 
 function Require-Path([string]$Path, [string]$Description) {
     if (-not (Test-Path -LiteralPath $Path)) {
@@ -25,23 +31,31 @@ function Require-Path([string]$Path, [string]$Description) {
 
 Require-Path (Join-Path $projectRoot 'apps\cli\lib\bin.js') 'built Harness CLI'
 Require-Path (Join-Path $projectRoot 'apps\web\dist\index.html') 'built Web frontend'
-Require-Path (Join-Path $pluginSource 'package.json') 'Model Router plugin source'
-Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\lib\index.js') 'dshmarket Host bundle'
-Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\client\client.js') 'dshmarket Web bundle'
+Require-Path (Join-Path $marketSource 'package.json') 'independent plugin market source'
+Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\lib\index.js') 'installed dshmarket Host bundle'
+Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\client\client.js') 'installed dshmarket Web bundle'
 Require-Path (Join-Path $pnpmSource 'bin\pnpm.cjs') 'packaged pnpm runtime'
 
-# Keep a real directory in the runtime's top-level node_modules.  The profile
-# is created under DSH_HOME at first launch, so the desktop shell mirrors this
-# package there before booting the loader.
-if (-not $pluginRuntimeFull.StartsWith("$nodeModulesRoot$([IO.Path]::DirectorySeparatorChar)", [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Refusing to replace a plugin runtime outside node_modules: $pluginRuntimeFull"
+# Model Router is a repository-only package, so materialize it as a real
+# directory. dshmarket stays in pnpm's installed dependency closure so its
+# production dependencies remain resolvable after runtime extraction.
+foreach ($package in $runtimePackages) {
+    $runtimeFull = [IO.Path]::GetFullPath($package.Runtime)
+    if (-not $runtimeFull.StartsWith("$nodeModulesRoot$([IO.Path]::DirectorySeparatorChar)", [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to replace a runtime package outside node_modules: $runtimeFull"
+    }
+    foreach ($relativePath in $package.Required) {
+        Require-Path (Join-Path $package.Source $relativePath) "$($package.Description) source file"
+    }
+    if (Test-Path -LiteralPath $runtimeFull) {
+        Remove-Item -LiteralPath $runtimeFull -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $runtimeFull | Out-Null
+    Get-ChildItem -LiteralPath $package.Source -Force | Copy-Item -Destination $runtimeFull -Recurse -Force
+    foreach ($relativePath in $package.Required) {
+        Require-Path (Join-Path $runtimeFull $relativePath) "$($package.Description) runtime file"
+    }
 }
-if (Test-Path -LiteralPath $pluginRuntimeFull) {
-    Remove-Item -LiteralPath $pluginRuntimeFull -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path $pluginRuntimeFull | Out-Null
-Get-ChildItem -LiteralPath $pluginSource -Force | Copy-Item -Destination $pluginRuntimeFull -Recurse -Force
-Require-Path (Join-Path $pluginRuntime 'package.json') 'runtime Model Router plugin'
 
 if (-not $NodeExecutable) {
     $NodeExecutable = (Get-Command node.exe -ErrorAction Stop).Source
@@ -50,9 +64,8 @@ Require-Path $NodeExecutable 'Node executable'
 New-Item -ItemType Directory -Force -Path $buildRoot, $nodeTargetDirectory | Out-Null
 Copy-Item -LiteralPath $NodeExecutable -Destination $nodeTarget -Force
 
-# The Electron runtime intentionally ships only node.exe. Package a portable
-# pnpm launcher beside it so the market can install profile plugins on a clean
-# Windows machine without relying on npm, corepack, or the user's PATH.
+# Package pnpm beside the embedded Node executable so market operations work
+# on a clean Windows host without npm, Corepack, or a system pnpm installation.
 if (Test-Path -LiteralPath $toolsTargetDirectory) {
     Remove-Item -LiteralPath $toolsTargetDirectory -Recurse -Force
 }

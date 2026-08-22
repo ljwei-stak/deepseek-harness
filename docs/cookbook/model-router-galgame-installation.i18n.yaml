@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/cookbook/model-router-galgame-installation.md
-model-router-galgame-installation.md: 4ce6e35055f4f8706738c465257accb224c4e0e3
-model-router-galgame-installation.zh.md: 43fd49e36fe7a1148697d4503c9e335ee8eacbad
+model-router-galgame-installation.md: 28f36d29ffac4dd7864b2df521775f122815875d
+model-router-galgame-installation.zh.md: 6e468353eccc78953ce92e1607dc80bccddc99ff
