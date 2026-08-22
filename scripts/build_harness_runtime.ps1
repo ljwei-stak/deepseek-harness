@@ -8,6 +8,10 @@ $buildRoot = Join-Path $projectRoot 'build'
 $archivePath = Join-Path $buildRoot 'harness-runtime.tar.gz'
 $nodeTargetDirectory = Join-Path $buildRoot 'harness-node'
 $nodeTarget = Join-Path $nodeTargetDirectory 'node.exe'
+$toolsTargetDirectory = Join-Path $buildRoot 'harness-tools'
+$pnpmSource = Join-Path $projectRoot 'node_modules\pnpm'
+$pnpmTarget = Join-Path $toolsTargetDirectory 'pnpm'
+$pnpmLauncher = Join-Path $toolsTargetDirectory 'pnpm.cmd'
 $pluginSource = Join-Path $projectRoot 'plugins\model-router-galgame'
 $pluginRuntime = Join-Path $projectRoot 'node_modules\model-router-galgame'
 $nodeModulesRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'node_modules'))
@@ -22,6 +26,9 @@ function Require-Path([string]$Path, [string]$Description) {
 Require-Path (Join-Path $projectRoot 'apps\cli\lib\bin.js') 'built Harness CLI'
 Require-Path (Join-Path $projectRoot 'apps\web\dist\index.html') 'built Web frontend'
 Require-Path (Join-Path $pluginSource 'package.json') 'Model Router plugin source'
+Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\lib\index.js') 'dshmarket Host bundle'
+Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\client\client.js') 'dshmarket Web bundle'
+Require-Path (Join-Path $pnpmSource 'bin\pnpm.cjs') 'packaged pnpm runtime'
 
 # Keep a real directory in the runtime's top-level node_modules.  The profile
 # is created under DSH_HOME at first launch, so the desktop shell mirrors this
@@ -42,6 +49,21 @@ if (-not $NodeExecutable) {
 Require-Path $NodeExecutable 'Node executable'
 New-Item -ItemType Directory -Force -Path $buildRoot, $nodeTargetDirectory | Out-Null
 Copy-Item -LiteralPath $NodeExecutable -Destination $nodeTarget -Force
+
+# The Electron runtime intentionally ships only node.exe. Package a portable
+# pnpm launcher beside it so the market can install profile plugins on a clean
+# Windows machine without relying on npm, corepack, or the user's PATH.
+if (Test-Path -LiteralPath $toolsTargetDirectory) {
+    Remove-Item -LiteralPath $toolsTargetDirectory -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $pnpmTarget | Out-Null
+Get-ChildItem -LiteralPath $pnpmSource -Force | Copy-Item -Destination $pnpmTarget -Recurse -Force
+$launcherText = @'
+@ECHO OFF
+"%~dp0..\harness-node\node.exe" "%~dp0pnpm\bin\pnpm.cjs" %*
+'@
+[IO.File]::WriteAllText($pnpmLauncher, $launcherText, [Text.Encoding]::ASCII)
+Require-Path $pnpmLauncher 'portable pnpm launcher'
 
 if (Test-Path -LiteralPath $archivePath) {
     Remove-Item -LiteralPath $archivePath -Force
@@ -80,3 +102,4 @@ if ($archive.Length -lt 100MB) {
 
 Write-Host "Runtime archive: $archivePath ($([math]::Round($archive.Length / 1MB, 1)) MB)"
 Write-Host "Bundled Node: $nodeTarget"
+Write-Host "Bundled pnpm: $pnpmLauncher"

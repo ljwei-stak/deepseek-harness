@@ -4,7 +4,7 @@ asar: true
 electronDist: node_modules/electron/dist
 extraMetadata:
   main: harness-main.js
-  version: 0.4.10
+  version: 0.4.11
 directories:
   output: dist
 files:
@@ -18,6 +18,8 @@ extraResources:
     to: harness-runtime.tar.gz
   - from: ../build/harness-node
     to: harness-node
+  - from: ../build/harness-tools
+    to: harness-tools
   - from: harness-local.patch.yml
     to: harness-local.patch.yml
 win:

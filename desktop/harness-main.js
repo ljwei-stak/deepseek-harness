@@ -8,8 +8,8 @@ const updater = require('./harness-updater')
 const DEFAULT_REMOTE_ORIGIN = process.env.DEEPSEEK_HARNESS_REMOTE_ORIGIN || 'https://www.jianweilimarx.top'
 const DEFAULT_REMOTE_PATH = process.env.DEEPSEEK_HARNESS_REMOTE_PATH || '/harness/'
 const CONFIG_FILENAME = 'deepseek-harness-client.json'
-const LOCAL_RUNTIME_VERSION = '0.4.10'
-const PLUGIN_VERSION = '0.4.10'
+const LOCAL_RUNTIME_VERSION = '0.4.11'
+const PLUGIN_VERSION = '0.4.11'
 const RELEASE_CACHE_MS = 5 * 60_000
 const RETRYABLE_FILESYSTEM_ERRORS = new Set(['EACCES', 'EBUSY', 'ENOTEMPTY', 'EPERM'])
 
@@ -141,6 +141,10 @@ function runtimeRequiredFiles(root) {
     path.join(root, 'apps', 'cli', 'lib', 'bin.js'),
     path.join(root, 'apps', 'web', 'dist', 'index.html'),
     path.join(root, 'node_modules', 'model-router-galgame', 'package.json'),
+    path.join(root, 'node_modules', 'dshmarket', 'package.json'),
+    path.join(root, 'node_modules', 'dshmarket', 'lib', 'index.js'),
+    path.join(root, 'node_modules', 'dshmarket', 'client', 'client.js'),
+    path.join(root, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'),
     path.join(root, 'vendor', 'cordis', 'lib', 'index.js'),
   ]
 }
@@ -334,6 +338,18 @@ function localNodePath() {
   return process.platform === 'win32' ? 'node.exe' : 'node'
 }
 
+function localHarnessPath(runtimeRoot) {
+  const separator = process.platform === 'win32' ? ';' : ':'
+  const packagedTools = bundledResource('harness-tools')
+  const candidates = [
+    packagedTools,
+    path.dirname(localNodePath()),
+    path.join(runtimeRoot, 'node_modules', '.bin'),
+  ].filter((candidate) => fs.existsSync(candidate))
+  const inherited = (process.env.PATH || '').split(separator).filter(Boolean)
+  return [...new Set([...candidates, ...inherited])].join(separator)
+}
+
 async function waitForLocalWorkspace(url, child) {
   const deadline = Date.now() + 90_000
   let lastError = '服务尚未就绪'
@@ -387,6 +403,7 @@ async function startLocalHarness() {
       ...process.env,
       DSH_HOME: home,
       DSH_TELEMETRY_DISABLED: '1',
+      PATH: localHarnessPath(runtimeRoot),
     },
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],

@@ -4,7 +4,8 @@ const net = require('node:net')
 const path = require('node:path')
 const { _electron: electron, expect, test } = require('@playwright/test')
 
-const HARNESS_RUNTIME_VERSION = '0.4.10'
+const HARNESS_RUNTIME_VERSION = '0.4.11'
+const WINDOWS_SYSTEM_PATH = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -49,6 +50,30 @@ function launchHarness(desktopRoot, profile, extraEnv = {}) {
   })
 }
 
+async function readMarketStatus(window) {
+  return window.evaluate(async () => {
+    const response = await fetch('/dsh-market/status')
+    return { status: response.status, body: await response.json() }
+  })
+}
+
+async function expectMarketSettingsSection(window) {
+  const notice = window.getByRole('dialog', { name: /^(内测声明|Internal Testing Notice)$/ })
+  await notice.getByRole('button', { name: /^(继续|Continue)$/ }).click()
+  await notice.waitFor({ state: 'detached', timeout: 15_000 })
+  const credential = window.getByRole('dialog', { name: /^(添加一个 API Key 开始使用|Add an API key to get started)$/ })
+  const configureLater = credential.getByRole('button', { name: /^(稍后配置|Configure later)$/ })
+  const hasCredentialOnboarding = await configureLater.waitFor({ state: 'visible', timeout: 3_000 })
+    .then(() => true, () => false)
+  if (hasCredentialOnboarding) {
+    await configureLater.click()
+    await credential.waitFor({ state: 'detached', timeout: 15_000 })
+  }
+  await window.getByRole('button', { name: /^(设置|Settings)$/ }).click()
+  const settings = window.getByRole('dialog', { name: /^(设置|Settings)$/ })
+  await expect(settings.getByRole('button', { name: /^(插件市场|Plugin Market)$/ })).toBeVisible()
+}
+
 test('Harness desktop starts the bundled local runtime with one choice', async ({}, testInfo) => {
   const desktopRoot = path.resolve(__dirname, '..')
   const projectRoot = path.resolve(desktopRoot, '..')
@@ -56,6 +81,7 @@ test('Harness desktop starts the bundled local runtime with one choice', async (
   const electronApp = await launchHarness(desktopRoot, profile, {
     DEEPSEEK_HARNESS_RUNTIME_ROOT: projectRoot,
     DEEPSEEK_HARNESS_NODE_PATH: process.execPath,
+    PATH: WINDOWS_SYSTEM_PATH,
   })
 
   let localPort
@@ -72,6 +98,11 @@ test('Harness desktop starts the bundled local runtime with one choice', async (
     expect(await window.evaluate(() => typeof window.deepSeekHarnessDesktop?.checkForUpdates)).toBe('function')
     expect(await window.evaluate(() => typeof window.deepSeekHarnessDesktop?.installPluginUpdate)).toBe('function')
     expect(await window.evaluate(() => typeof window.deepSeekHarnessDesktop?.installDesktopUpdate)).toBe('function')
+    const market = await readMarketStatus(window)
+    expect(market.status).toBe(200)
+    expect(market.body.version).toBe('1.18.0')
+    expect(market.body.pnpm).toBe(true)
+    await expectMarketSettingsSection(window)
   } finally {
     await electronApp.close()
   }
@@ -143,6 +174,7 @@ test('packaged Harness extracts and starts its embedded local runtime', async ({
     env: {
       ...process.env,
       DEEPSEEK_HARNESS_USER_DATA_DIR: profile,
+      PATH: WINDOWS_SYSTEM_PATH,
     },
   })
 
@@ -156,9 +188,18 @@ test('packaged Harness extracts and starts its embedded local runtime', async ({
     await expect(window.locator('#root')).not.toBeEmpty({ timeout: 15_000 })
     localPort = Number(new URL(window.url()).port)
     expect(localPort).toBeGreaterThan(0)
+    const market = await readMarketStatus(window)
+    expect(market.status).toBe(200)
+    expect(market.body.version).toBe('1.18.0')
+    expect(market.body.pnpm).toBe(true)
+    await expectMarketSettingsSection(window)
     expect(fs.existsSync(path.join(profile, 'local-runtimes', HARNESS_RUNTIME_VERSION, 'node_modules', 'model-router-galgame', 'package.json'))).toBe(true)
+    expect(fs.existsSync(path.join(profile, 'local-runtimes', HARNESS_RUNTIME_VERSION, 'node_modules', 'dshmarket', 'lib', 'index.js'))).toBe(true)
+    expect(fs.existsSync(path.join(profile, 'local-runtimes', HARNESS_RUNTIME_VERSION, 'node_modules', 'dshmarket', 'client', 'client.js'))).toBe(true)
+    expect(fs.existsSync(path.join(profile, 'local-runtimes', HARNESS_RUNTIME_VERSION, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'))).toBe(true)
     expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', 'model-router-galgame', 'package.json'))).toBe(true)
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('Cannot find package model-router-galgame')
+    expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('Cannot find package dshmarket')
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('ENOTEMPTY')
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).toContain(`Activated local runtime ${HARNESS_RUNTIME_VERSION}`)
   } finally {

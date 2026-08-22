@@ -34,6 +34,18 @@
 
 4. 重启 Harness Web profile，打开插件设置页面，确认已安装插件列表中出现 `Model Router + GALGame`。
 
+## 安装插件市场
+
+Windows 桌面客户端已经内置 `dshmarket@1.18.0` 和便携版 `pnpm`。选择本地运行后打开“设置 -> 插件市场”即可使用，不需要再次安装市场或系统包管理器。
+
+原生 Harness 源码目录需要把市场安装到 Web profile，然后重启 Harness：
+
+```powershell
+pnpm dsh plugin --profile web add dshmarket@1.18.0
+```
+
+市场页面可以浏览社区目录、核验包信息、安装或更新插件、启用或禁用兼容入口、调整社区 bundle 顺序、创建备份和导出诊断。通过市场安装的插件及其状态归用户自己的 Web profile 管理，不写入 Model Router 插件目录。
+
 ## 配置模型服务与路由数据
 
 1. 在原生 Harness 的模型设置中配置一个或多个模型服务，并先用简单请求验证每个服务可以正常回答。
@@ -66,7 +78,7 @@
 
 ## 桌面端应用
 
-Windows 安装包包含 Harness 运行时、Web 客户端和匹配版本的插件。安装 `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe` 后启动应用，选择“服务器端”连接远程 Harness，或选择“本地”使用内置运行时。桌面端检测到客户端过期时，一键更新会同时更新完整客户端和内置插件；客户端仍兼容时只更新插件包。
+Windows 安装包包含 Harness 运行时、Web 客户端、匹配版本的 Model Router、`dshmarket` 和便携版 `pnpm`。安装 `DeepSeek-Harness-ModelRouter-GALGame-Setup-<version>-Windows-x64.exe` 后启动应用，选择“服务器端”连接远程 Harness，或选择“本地”使用内置运行时。桌面端检测到客户端过期时，一键更新会同时更新完整客户端和内置组件；客户端仍兼容时只更新 Model Router 插件包。内置市场版本随完整客户端更新，通过市场安装的社区插件保持各自的更新周期。
 
 桌面安装包不是原生 Web profile 安装的前置条件。通过 `dsh plugin --profile web add` 安装的插件归对应 Harness profile 管理，与桌面端安装相互独立。
 
@@ -83,7 +95,8 @@ Windows 安装包包含 Harness 运行时、Web 客户端和匹配版本的插�
 - **没有选出模型：** 确认 provider 已启用、模型标识与原生目录一致；使用中转站时，价格条目要使用准确的 `provider/model` 键。
 - **桌面更新失败：** 关闭正在运行的 Harness 窗口后重试，或安装最新完整安装包。卸载时保留用户数据目录，以保留会话存档和设置。
 - **图片任务失败：** 使用原生目录中声明支持视觉能力的模型，并通过 Harness 附件控件添加图片；不支持的二进制格式会保持“未解析”状态，不会被静默当作文本发送。
+- **市场提示 pnpm 不可用：** 原生 Harness 需要安装 `pnpm` 后重启。Windows 安装版的 `/dsh-market/status` 应返回 `pnpm: true`；若内置工具缺失，请重新安装完整客户端。
 
 ## 安全与可复现性
 
-启用路由前检查模型服务地址和价格。价格是用户填写的估算参考数据，不代表供应商永久官方报价。API Key 应保存在 Harness 凭据存储中，分发安装包或插件压缩包前应核对 Release 校验和。
+启用路由前检查模型服务地址和价格。价格是用户填写的估算参考数据，不代表供应商永久官方报价。API Key 应保存在 Harness 凭据存储中，分发安装包或插件压缩包前应核对 Release 校验和。市场插件会使用 Harness 进程权限执行；安装前应检查代码仓库、包身份、构建脚本和许可证，只安装可信来源，并在接入陌生代码前备份 Web profile。进入市场目录不代表获得安全背书。

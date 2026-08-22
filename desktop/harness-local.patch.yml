@@ -10,3 +10,9 @@
 - insert:
     - id: model-router-galgame
       name: model-router-galgame
+
+# Ship the community plugin market as a regular Host + Web bundle. Installed
+# plugins still belong to the user's Web profile and can be removed there.
+- insert:
+    - id: dsh-market
+      name: dshmarket

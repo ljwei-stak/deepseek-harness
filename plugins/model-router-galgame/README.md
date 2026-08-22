@@ -17,6 +17,7 @@ This plugin installs on an original DeepSeek Harness checkout. It adds a cost-aw
 - **Attachments and multimodality** use the native image pipeline and extract Markdown/TXT/JSON/code as text. PDF/DOCX and other binary files keep an explicit parsing state rather than silently inventing content.
 - **OpenCode Zen compatibility** repairs official website overrides to the catalog-owned `/zen` and `/zen/v1` endpoints while leaving custom gateways untouched.
 - **Release updates and desktop support** provide release checks and a one-click updater. When the desktop is outdated it updates the full client and bundled plugin; otherwise it updates only the plugin. Browser-only installs open Releases because they cannot write local files.
+- **Plugin market integration** bundles [`dshmarket@1.18.0`](https://github.com/dsh-market/dsh-market) into the desktop Web profile. Open **Settings -> Plugin Market** to browse, inspect, install, update, disable, reorder, back up, or diagnose community plugins. The Windows client carries a pinned `pnpm`, so a clean installation does not depend on a system package manager.
 
 ## Installation
 
@@ -27,6 +28,12 @@ dsh plugin --profile web add <plugin-directory>
 ```
 
 Restart Harness after installation. If no model is available, native model selection remains intact and the conversation is not blocked.
+
+The community market is independent from this plugin. Native Harness users can add it to the same Web profile with:
+
+```text
+dsh plugin --profile web add dshmarket@1.18.0
+```
 
 See the [native installation tutorial](../../docs/cookbook/model-router-galgame-installation.md) for the complete setup, provider configuration, desktop, update, and troubleshooting procedure.
 
@@ -75,4 +82,6 @@ The GAL interaction is inspired by [`Ayase34/gal-view`](https://github.com/Ayase
 
 ## Desktop application
 
-The root `desktop/` directory provides server/local mode selection and Windows packaging. The desktop window, launcher, and Windows installer use the square icon derived from `DeepSeek_Harness娘.avif`. Source, settings schema, and reproducible build scripts remain in the repository; installers are published through the project Releases.
+The root `desktop/` directory provides server/local mode selection and Windows packaging. The desktop window, launcher, and Windows installer use the square icon derived from `DeepSeek_Harness娘.avif`. The local runtime includes Model Router + GALGame, `dshmarket`, and a portable `pnpm`; plugins installed from the market remain in the user's Web profile. Source, settings schema, and reproducible build scripts remain in the repository; installers are published through the project Releases.
+
+The market installs executable third-party packages. Review the repository, package identity, requested build scripts, and license before installation, and install only sources you trust. The market catalog is discovery metadata rather than a security endorsement by DeepSeek Harness, this repository, or the Model Router plugin.
