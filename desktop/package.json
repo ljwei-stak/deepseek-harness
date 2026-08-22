@@ -4,6 +4,7 @@
   "private": true,
   "description": "DeepSeek Harness desktop client with independent Model Router + GALGame and dsh-market plugins",
   "author": "Jianwei Li <ljwei-stak@users.noreply.github.com>",
+  "homepage": "https://github.com/ljwei-stak/deepseek-harness",
   "main": "harness-main.js",
   "scripts": {
     "prestart": "npm --prefix ../apps/web run build",
