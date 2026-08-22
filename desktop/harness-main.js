@@ -180,6 +180,12 @@ async function installEffectivePlugin(runtimeRoot, home) {
   return target
 }
 
+async function installPluginMarket(runtimeRoot, home) {
+  const target = await updater.syncRuntimePackageToProfile(runtimeRoot, home, 'dshmarket', MARKET_VERSION)
+  debugLog(`Using independent plugin market ${MARKET_VERSION}: ${target}`)
+  return target
+}
+
 function isReadyRuntime(root) {
   try {
     if (fs.readFileSync(path.join(root, '.runtime-version'), 'utf8').trim() !== LOCAL_RUNTIME_VERSION) return false
@@ -398,6 +404,7 @@ async function startLocalHarness() {
   const home = path.join(app.getPath('userData'), 'harness-home')
   fs.mkdirSync(home, { recursive: true })
   await installEffectivePlugin(runtimeRoot, home)
+  await installPluginMarket(runtimeRoot, home)
   const patch = localPatchPath()
   // The web command passes unknown options through to the web app. Keep the
   // launcher-owned patch option before --port so it is consumed by dsh.

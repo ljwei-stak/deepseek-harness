@@ -1,6 +1,7 @@
 const http = require('node:http')
 const fs = require('node:fs')
 const net = require('node:net')
+const os = require('node:os')
 const path = require('node:path')
 const { _electron: electron, expect, test } = require('@playwright/test')
 
@@ -74,10 +75,10 @@ async function expectMarketSettingsSection(window) {
   await expect(settings.getByRole('button', { name: /^(插件市场|Plugin Market)$/ })).toBeVisible()
 }
 
-test('Harness desktop starts the bundled local runtime with one choice', async ({}, testInfo) => {
+test('Harness desktop starts the bundled local runtime with one choice', async ({}) => {
   const desktopRoot = path.resolve(__dirname, '..')
   const projectRoot = path.resolve(desktopRoot, '..')
-  const profile = testInfo.outputPath('local-profile')
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'deepseek-harness-source-'))
   const electronApp = await launchHarness(desktopRoot, profile, {
     DEEPSEEK_HARNESS_RUNTIME_ROOT: projectRoot,
     DEEPSEEK_HARNESS_NODE_PATH: process.execPath,
@@ -108,6 +109,7 @@ test('Harness desktop starts the bundled local runtime with one choice', async (
   }
 
   await waitForPortClosed(localPort)
+  fs.rmSync(profile, { recursive: true, force: true })
 })
 
 test('Harness desktop connects to the selected server workspace', async ({}, testInfo) => {
@@ -157,11 +159,13 @@ test('Harness desktop replaces an empty workspace with a readable connection err
   }
 })
 
-test('packaged Harness extracts and starts its embedded local runtime', async ({}, testInfo) => {
+test('packaged Harness extracts and starts its embedded local runtime', async ({}) => {
   test.setTimeout(180_000)
   const desktopRoot = path.resolve(__dirname, '..')
   const executablePath = path.join(desktopRoot, 'dist', 'win-unpacked', 'DeepSeek Harness.exe')
-  const profile = testInfo.outputPath('packaged-profile')
+  // Keep the profile outside the repository so package resolution cannot
+  // accidentally fall through to the development checkout's node_modules.
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'deepseek-harness-packaged-'))
   const legacyRuntime = path.join(profile, 'local-runtime')
   const incompleteVersionedRuntime = path.join(profile, 'local-runtimes', HARNESS_RUNTIME_VERSION)
   fs.mkdirSync(path.join(legacyRuntime, 'partially-removed'), { recursive: true })
@@ -198,6 +202,8 @@ test('packaged Harness extracts and starts its embedded local runtime', async ({
     expect(fs.existsSync(path.join(profile, 'local-runtimes', HARNESS_RUNTIME_VERSION, 'node_modules', 'dshmarket', 'client', 'client.js'))).toBe(true)
     expect(fs.existsSync(path.join(profile, 'local-runtimes', HARNESS_RUNTIME_VERSION, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'))).toBe(true)
     expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', 'model-router-galgame', 'package.json'))).toBe(true)
+    expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', 'dshmarket', 'package.json'))).toBe(true)
+    expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', 'dshmarket', 'node_modules', 'js-yaml', 'package.json'))).toBe(true)
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('Cannot find package model-router-galgame')
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('Cannot find package dshmarket')
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('ENOTEMPTY')
@@ -207,4 +213,5 @@ test('packaged Harness extracts and starts its embedded local runtime', async ({
   }
 
   await waitForPortClosed(localPort)
+  fs.rmSync(profile, { recursive: true, force: true })
 })

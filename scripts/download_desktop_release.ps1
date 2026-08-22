@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$Destination = (Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Downloads'),
-  [string]$Version = '0.4.11',
+  [string]$Version = '0.4.12',
   [switch]$RunInstaller
 )
 

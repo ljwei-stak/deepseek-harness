@@ -211,3 +211,42 @@ test('profile uses a compatible persisted plugin until a newer bundle arrives', 
     await updater.safeRemoveTree(root)
   }
 })
+
+test('profile receives a symlink-free runtime package dependency closure', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-market-profile-'))
+  const runtime = path.join(root, 'runtime')
+  const home = path.join(root, 'home')
+  const nodeModules = path.join(runtime, 'node_modules')
+
+  function writePackage(name, version, dependencies = {}) {
+    const directory = path.join(nodeModules, ...name.split('/'))
+    fs.mkdirSync(directory, { recursive: true })
+    fs.writeFileSync(path.join(directory, 'package.json'), `${JSON.stringify({
+      name,
+      version,
+      main: 'index.js',
+      dependencies,
+    }, null, 2)}\n`)
+    fs.writeFileSync(path.join(directory, 'index.js'), `module.exports = ${JSON.stringify(name)}\n`)
+    return directory
+  }
+
+  try {
+    writePackage('dshmarket', '1.18.0', { 'js-yaml': '4.2.0', undici: '7.29.0' })
+    writePackage('js-yaml', '4.2.0', { argparse: '2.0.1' })
+    writePackage('argparse', '2.0.1')
+    writePackage('undici', '7.29.0')
+
+    const target = await updater.syncRuntimePackageToProfile(runtime, home, 'dshmarket', '1.18.0')
+    assert.equal(JSON.parse(fs.readFileSync(path.join(target, 'package.json'), 'utf8')).version, '1.18.0')
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', 'js-yaml', 'node_modules', 'argparse', 'index.js')), true)
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', 'undici', 'index.js')), true)
+    assert.equal(fs.lstatSync(target).isSymbolicLink(), false)
+
+    await updater.safeRemoveTree(path.join(target, 'node_modules', 'js-yaml'))
+    await updater.syncRuntimePackageToProfile(runtime, home, 'dshmarket', '1.18.0')
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', 'js-yaml', 'node_modules', 'argparse', 'index.js')), true)
+  } finally {
+    await updater.safeRemoveTree(root)
+  }
+})

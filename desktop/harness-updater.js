@@ -674,6 +674,166 @@ async function syncPluginToProfile(source, home) {
   return target
 }
 
+function packageManifest(directory) {
+  const filename = path.join(directory, 'package.json')
+  let manifest
+  try {
+    manifest = JSON.parse(fs.readFileSync(filename, 'utf8'))
+  } catch (error) {
+    throw new Error(`无法读取运行时程序包：${filename}：${error.message}`, { cause: error })
+  }
+  if (typeof manifest?.name !== 'string' || typeof manifest?.version !== 'string') {
+    throw new Error(`运行时程序包清单缺少名称或版本：${filename}`)
+  }
+  return manifest
+}
+
+function assertPackageName(name) {
+  if (!/^(?:@[0-9A-Za-z._-]+\/)?[0-9A-Za-z._-]+$/.test(name)) {
+    throw new Error(`运行时程序包名称无效：${name}`)
+  }
+}
+
+function isInsideDirectory(root, candidate) {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate))
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))
+}
+
+function findPackageDirectory(entry, expectedName) {
+  let current = path.dirname(entry)
+  while (true) {
+    const filename = path.join(current, 'package.json')
+    if (fs.existsSync(filename)) {
+      try {
+        if (JSON.parse(fs.readFileSync(filename, 'utf8'))?.name === expectedName) return current
+      } catch {
+        // Continue upward; an unrelated malformed package cannot own this dependency.
+      }
+    }
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
+  throw new Error(`无法定位运行时依赖 ${expectedName} 的程序包目录`)
+}
+
+function resolveDependencyDirectory(source, name, allowedRoot, optional) {
+  assertPackageName(name)
+  try {
+    const entry = require.resolve(name, { paths: [source] })
+    const directory = fs.realpathSync(findPackageDirectory(entry, name))
+    if (!isInsideDirectory(allowedRoot, directory)) {
+      throw new Error(`依赖 ${name} 解析到了运行时之外：${directory}`)
+    }
+    return directory
+  } catch (error) {
+    if (optional && error?.code === 'MODULE_NOT_FOUND') return null
+    throw new Error(`无法解析运行时依赖 ${name}：${error.message}`, { cause: error })
+  }
+}
+
+async function copyPackageClosure(source, target, allowedSourceRoot, ancestry = new Set()) {
+  const realSource = fs.realpathSync(source)
+  if (!isInsideDirectory(allowedSourceRoot, realSource)) {
+    throw new Error(`拒绝复制运行时之外的程序包：${realSource}`)
+  }
+  const manifest = packageManifest(realSource)
+  const identity = `${manifest.name}@${manifest.version}:${realSource}`
+  await fs.promises.cp(realSource, target, {
+    recursive: true,
+    force: false,
+    errorOnExist: true,
+    dereference: true,
+    filter(candidate) {
+      const relative = path.relative(realSource, candidate)
+      return relative === '' && candidate === realSource
+        || relative.split(path.sep)[0] !== 'node_modules'
+    },
+  })
+  if (ancestry.has(identity)) return
+
+  const nextAncestry = new Set(ancestry).add(identity)
+  const required = Object.keys(manifest.dependencies ?? {})
+  const optional = Object.keys(manifest.optionalDependencies ?? {})
+  for (const name of [...new Set([...required, ...optional])].sort()) {
+    const dependency = resolveDependencyDirectory(realSource, name, allowedSourceRoot, optional.includes(name))
+    if (dependency === null) continue
+    const destination = path.join(target, 'node_modules', ...name.split('/'))
+    await fs.promises.mkdir(path.dirname(destination), { recursive: true })
+    await copyPackageClosure(dependency, destination, allowedSourceRoot, nextAncestry)
+  }
+}
+
+function assertPackageClosure(directory, allowedRoot, ancestry = new Set()) {
+  const realDirectory = fs.realpathSync(directory)
+  if (!isInsideDirectory(allowedRoot, realDirectory)) {
+    throw new Error(`程序包解析到了 profile 之外：${realDirectory}`)
+  }
+  const manifest = packageManifest(realDirectory)
+  const identity = `${manifest.name}@${manifest.version}:${realDirectory}`
+  if (ancestry.has(identity)) return manifest
+  const nextAncestry = new Set(ancestry).add(identity)
+  const required = Object.keys(manifest.dependencies ?? {})
+  const optional = Object.keys(manifest.optionalDependencies ?? {})
+  for (const name of [...new Set([...required, ...optional])].sort()) {
+    const dependency = resolveDependencyDirectory(realDirectory, name, allowedRoot, optional.includes(name))
+    if (dependency !== null) assertPackageClosure(dependency, allowedRoot, nextAncestry)
+  }
+  return manifest
+}
+
+async function syncRuntimePackageToProfile(runtimeRoot, home, name, expectedVersion) {
+  assertPackageName(name)
+  const runtimeNodeModules = fs.realpathSync(path.join(runtimeRoot, 'node_modules'))
+  const source = path.join(runtimeRoot, 'node_modules', ...name.split('/'))
+  const sourceManifest = packageManifest(source)
+  if (sourceManifest.name !== name || sourceManifest.version !== parseVersion(expectedVersion).raw) {
+    throw new Error(`内置 ${name} 版本不匹配：需要 ${expectedVersion}，实际为 ${sourceManifest.version || '未知'}`)
+  }
+
+  const targetParent = path.join(home, 'profiles', 'node_modules')
+  const target = path.join(targetParent, ...name.split('/'))
+  await fs.promises.mkdir(targetParent, { recursive: true })
+  try {
+    const installed = assertPackageClosure(target, targetParent)
+    if (installed.name === name && compareVersions(installed.version, sourceManifest.version) >= 0) return target
+  } catch {
+    // An absent, incomplete, or externally resolved package is replaced atomically below.
+  }
+
+  const staging = randomSibling(target, 'installing')
+  const backup = randomSibling(target, 'backup')
+  let hasBackup = false
+  try {
+    await copyPackageClosure(source, staging, runtimeNodeModules)
+    const installed = assertPackageClosure(staging, path.dirname(staging))
+    if (installed.name !== name || installed.version !== sourceManifest.version) {
+      throw new Error(`复制后的 ${name} 版本不一致`)
+    }
+    try {
+      await fs.promises.lstat(target)
+      await retryFilesystemOperation(`备份当前 ${name}`, () => fs.promises.rename(target, backup))
+      hasBackup = true
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+    await retryFilesystemOperation(`启用 ${name}`, () => fs.promises.rename(staging, target))
+  } catch (error) {
+    await bestEffortRemove(staging)
+    if (hasBackup) {
+      await bestEffortRemove(target)
+      try {
+        await retryFilesystemOperation(`恢复原 ${name}`, () => fs.promises.rename(backup, target))
+      } catch (restoreError) {
+        throw new Error(`启用 ${name} 失败，且无法恢复原程序包：${restoreError.message}`, { cause: error })
+      }
+    }
+    throw error
+  }
+  if (hasBackup) await bestEffortRemove(backup)
+  return target
+}
+
 function effectivePluginVersion(userData, bundledVersion, runtimeVersion) {
   const active = activePluginRecord(userData)
   if (active === null) return parseVersion(bundledVersion).raw
@@ -708,4 +868,5 @@ module.exports = {
   selectPluginSource,
   sha256File,
   syncPluginToProfile,
+  syncRuntimePackageToProfile,
 }

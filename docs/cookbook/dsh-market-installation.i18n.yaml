@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/cookbook/dsh-market-installation.md
-dsh-market-installation.md: 56f1cf8beb3de4d354d519b27e8e06db81fdee02
-dsh-market-installation.zh.md: ad43f7c1995dc084a9c14be7b70fa264694b4e9a
+dsh-market-installation.md: 6488641e615af5f6ce583f43de16424e98aa4ac3
+dsh-market-installation.zh.md: 4cd5e80fcbc3b20de2ff6c35ea245012e1bfbb66

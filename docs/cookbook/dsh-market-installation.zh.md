@@ -46,7 +46,7 @@ pnpm dsh plugin --profile web add dshmarket@1.18.0
 
 ## 使用 Windows 桌面客户端
 
-Windows 客户端包含独立市场快照、Model Router + GALGame、内置 Node.js 与便携版 `pnpm@11.7.0`。选择本地模式后打开“设置 -> 插件市场”即可使用，不需要系统安装 Node.js 或 pnpm。市场安装的社区插件仍保存在用户的 Web profile 中；更新或禁用这些插件不会替换 Model Router 包。
+桌面端 `0.4.12` 包含独立市场快照、Model Router + GALGame、内置 Node.js 与便携版 `pnpm@11.7.0`。本地 Harness 启动前，客户端会检查用户 profile 中的市场程序包，并以原子方式安装缺失的递归生产依赖。在旧版本上覆盖安装该客户端会保留任务历史、模型凭据和社区插件状态。选择本地模式后打开“设置 -> 插件市场”即可使用，不需要系统安装 Node.js 或 pnpm。市场安装的社区插件仍保存在用户的 Web profile 中；更新或禁用这些插件不会替换 Model Router 包。
 
 桌面运行时内置的市场快照随完整客户端更新。Model Router 独立更新器只修改 Model Router，不会覆盖市场或社区插件依赖。
 

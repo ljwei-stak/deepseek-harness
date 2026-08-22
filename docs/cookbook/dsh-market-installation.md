@@ -46,7 +46,7 @@ The local snapshot adds provenance and fork-specific verification files but keep
 
 ## Use the Windows desktop client
 
-The Windows client includes the independent market snapshot, Model Router + GALGame, embedded Node.js, and portable `pnpm@11.7.0`. Choose local mode and open **Settings -> Plugin Market**; a system Node.js or pnpm installation is not required. Market-installed community plugins remain in the user's Web profile. Updating or disabling them does not replace the Model Router package.
+Desktop `0.4.12` includes the independent market snapshot, Model Router + GALGame, embedded Node.js, and portable `pnpm@11.7.0`. Before local Harness boots, the client verifies the market package in the user profile and atomically installs any missing recursive production dependencies. Installing this client over an earlier version preserves task history, model credentials, and community plugin state. Choose local mode and open **Settings -> Plugin Market**; a system Node.js or pnpm installation is not required. Market-installed community plugins remain in the user's Web profile. Updating or disabling them does not replace the Model Router package.
 
 The market snapshot bundled with the desktop runtime changes through a complete-client update. The standalone Model Router updater changes only Model Router and does not overwrite the market or community plugin dependencies.
 
