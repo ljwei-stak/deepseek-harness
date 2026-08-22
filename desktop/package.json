@@ -3,6 +3,7 @@
   "version": "0.4.13",
   "private": true,
   "description": "DeepSeek Harness desktop client with independent Model Router + GALGame and dsh-market plugins",
+  "author": "Jianwei Li <ljwei-stak@users.noreply.github.com>",
   "main": "harness-main.js",
   "scripts": {
     "prestart": "npm --prefix ../apps/web run build",
@@ -11,7 +12,7 @@
     "test:e2e": "playwright test",
     "pack": "electron-builder --dir",
     "dist:harness:win": "electron-builder --config harness-builder.yml --win nsis",
-    "dist:harness:linux": "electron-builder --config harness-builder-linux.yml --linux deb rpm --x64"
+    "dist:harness:linux": "electron-builder --config harness-builder-linux.yml --linux deb rpm --x64 --publish never"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
