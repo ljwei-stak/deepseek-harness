@@ -12,7 +12,7 @@
 - **LiveBench 快照**：默认连接 LiveBench 官网根地址，自动发现最新 release 并读取官方 `table_YYYY_MM_DD.csv` 与 `categories_YYYY_MM_DD.json`，同时兼容用户填写的 JSON/CSV 镜像。刷新失败时保留上一次成功快照；没有快照时回退到项目内实验基线，并在摘要中明确标注“未完成联网核验”。
 - **用户价格与预算**：设置页的“模型费用与路由预算”可编辑输入、输出、缓存读取、缓存写入价格（USD/1M tokens）、LiveBench 地址、刷新周期、单任务预算以及缓存读写占输入比例；也支持用 `provider/model` 标识覆盖同一模型在不同中转站的价格。缓存比例默认为 0，只有确认供应商启用 prompt cache 后才建议填写；用户覆盖优先于实验基线，价格只影响集体路由和估价，不接触 API Key。
 - **费用审计**：按工作包估算输入/输出 token，逐阶段累加费用，并展示全高质量基线、预计节省、质量下限、预算状态和实际使用模型数。
-- **GAL 视窗**：新会话自动形成存档；历史记录保留实际 provider/model，名牌、颜色和立绘随当前模型变化。路由分析显示的是可审计摘要，不是模型私有思维链。
+- **GAL 视窗**：新会话自动形成存档；历史记录保留实际 provider/model，名牌、颜色和立绘随当前模型变化。ERNIE、文心一言和百度 provider/model 标识统一显示 `ERNIE娘` 与 `ernie1.png`。路由分析显示的是可审计摘要，不是模型私有思维链。
 - **Markdown/KaTeX**：复用 Harness 的 `MarkdownText`，支持标题、列表、表格、引用、代码、链接和数学公式；宽表格、代码块和公式在对话框内滚动，玩家输入保持纯文本。
 - **附件与多模态**：图片使用原生多模态管线，Markdown/TXT/JSON/代码文件提取为文本；PDF/DOCX 等二进制文件保留解析状态，不会静默伪造内容。
 - **OpenCode Zen**：官方站点覆盖会自动恢复模型目录所需的 `/zen`、`/zen/v1` 端点；自定义网关不受影响。
@@ -47,7 +47,7 @@ dsh plugin --profile web add <plugin-directory>
 ```text
 U(i,m) = wq(c) Q(i,m) + wc(c) C(m) + wl(c) (1 - L(m))
          + ws(c) S(i,m) - wr(c) R(m)
-         - lambda * 1[m 已被其他工作包使用]
+         - lambda * 1[m is already used]
          - kappa * max(0, F(i) - Q(i,m))
 ```
 
@@ -75,4 +75,4 @@ GAL 交互方式参考 [`Ayase34/gal-view`](https://github.com/Ayase34/gal-view)
 
 ## 桌面端
 
-仓库根目录 `desktop/` 提供服务器端/本地运行模式切换和 Windows 打包配置。插件源码、设置 schema 和构建脚本均保留在仓库，安装包通过项目 Release 发布。
+仓库根目录 `desktop/` 提供服务器端/本地运行模式切换和 Windows 打包配置。桌面窗口、启动器与 Windows 安装包使用 `DeepSeek_Harness娘.avif` 生成的方形图标。插件源码、设置 schema 和构建脚本均保留在仓库，安装包通过项目 Release 发布。

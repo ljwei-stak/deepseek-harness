@@ -10,6 +10,8 @@ $nodeTargetDirectory = Join-Path $buildRoot 'harness-node'
 $nodeTarget = Join-Path $nodeTargetDirectory 'node.exe'
 $pluginSource = Join-Path $projectRoot 'plugins\model-router-galgame'
 $pluginRuntime = Join-Path $projectRoot 'node_modules\model-router-galgame'
+$nodeModulesRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'node_modules'))
+$pluginRuntimeFull = [IO.Path]::GetFullPath($pluginRuntime)
 
 function Require-Path([string]$Path, [string]$Description) {
     if (-not (Test-Path -LiteralPath $Path)) {
@@ -24,8 +26,14 @@ Require-Path (Join-Path $pluginSource 'package.json') 'Model Router plugin sourc
 # Keep a real directory in the runtime's top-level node_modules.  The profile
 # is created under DSH_HOME at first launch, so the desktop shell mirrors this
 # package there before booting the loader.
-New-Item -ItemType Directory -Force -Path $pluginRuntime | Out-Null
-Get-ChildItem -LiteralPath $pluginSource -Force | Copy-Item -Destination $pluginRuntime -Recurse -Force
+if (-not $pluginRuntimeFull.StartsWith("$nodeModulesRoot$([IO.Path]::DirectorySeparatorChar)", [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to replace a plugin runtime outside node_modules: $pluginRuntimeFull"
+}
+if (Test-Path -LiteralPath $pluginRuntimeFull) {
+    Remove-Item -LiteralPath $pluginRuntimeFull -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $pluginRuntimeFull | Out-Null
+Get-ChildItem -LiteralPath $pluginSource -Force | Copy-Item -Destination $pluginRuntimeFull -Recurse -Force
 Require-Path (Join-Path $pluginRuntime 'package.json') 'runtime Model Router plugin'
 
 if (-not $NodeExecutable) {

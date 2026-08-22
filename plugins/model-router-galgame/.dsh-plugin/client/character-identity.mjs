@@ -4,6 +4,7 @@ export const CHARACTER_LABELS = Object.freeze({
   claude: 'Claude',
   deepseek: 'DeepSeek',
   doubao: '豆包',
+  ernie: 'ERNIE',
   gemini: 'Gemini',
   glm: 'GLM',
   grok: 'Grok',
@@ -12,7 +13,6 @@ export const CHARACTER_LABELS = Object.freeze({
   minimax: 'MiniMax',
   opencode: 'OpenCode Zen',
   qwen: 'Qwen',
-  wenxin: '文心一言',
 })
 
 /** Resolve a provider/model id to the corresponding maid character key. */
@@ -23,6 +23,7 @@ export function characterKeyForModel(model, provider = '') {
   if (value.includes('gpt') || value.includes('openai')) return 'chatgpt'
   if (value.includes('deepseek')) return 'deepseek'
   if (value.includes('doubao') || value.includes('seedream') || value.includes('volcengine')) return 'doubao'
+  if (value.includes('ernie') || value.includes('wenxin') || value.includes('baidu')) return 'ernie'
   if (value.includes('gemini')) return 'gemini'
   if (value.includes('glm') || value.includes('zhipu') || value.includes('bigmodel')) return 'glm'
   if (value.includes('grok')) return 'grok'
@@ -33,7 +34,6 @@ export function characterKeyForModel(model, provider = '') {
   // through Zen is still Qwen娘; only otherwise-unmatched Zen models use the
   // generic OpenCode character.
   if (value.includes('qwen') || value.includes('dashscope')) return 'qwen'
-  if (value.includes('wenxin') || value.includes('baidu')) return 'wenxin'
   if (value.includes('opencode') || value.includes('zen')) return 'opencode'
   return 'harness'
 }

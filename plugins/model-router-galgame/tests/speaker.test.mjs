@@ -21,6 +21,8 @@ test('model names select the model maid even when routed through OpenCode Zen', 
   assert.equal(characterLabelForModel('Qwen3.7 Plus', 'opencode'), 'Qwen')
   assert.equal(characterLabelForModel('DeepSeek V4 Pro', 'zen'), 'DeepSeek')
   assert.equal(characterLabelForModel('Claude Sonnet 5', 'opencode'), 'Claude')
+  assert.equal(characterLabelForModel('ernie-5.1', 'ernie'), 'ERNIE')
+  assert.equal(characterKeyForModel('ERNIE 5.1', 'baidu'), 'ernie')
   assert.equal(characterKeyForModel('Big Pickle', 'opencode'), 'opencode')
 })
 

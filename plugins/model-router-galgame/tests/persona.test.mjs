@@ -15,6 +15,7 @@ test('persona mapping follows the same model families as GAL portraits', () => {
   assert.equal(personaForModel('Claude Sonnet 5', 'zen').title, '月光图书管理员')
   assert.equal(personaForModel('GPT 5.6 Sol', 'zen').displayName, 'ChatGPT')
   assert.equal(personaForModel('DeepSeek V4 Pro', 'deepseek').key, 'deepseek')
+  assert.equal(personaForModel('ernie-5.1', 'baidu').key, 'ernie')
   assert.equal(Object.keys(PERSONA_PROFILES).length, 14)
 })
 

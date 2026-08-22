@@ -8,8 +8,8 @@ const updater = require('./harness-updater')
 const DEFAULT_REMOTE_ORIGIN = process.env.DEEPSEEK_HARNESS_REMOTE_ORIGIN || 'https://www.jianweilimarx.top'
 const DEFAULT_REMOTE_PATH = process.env.DEEPSEEK_HARNESS_REMOTE_PATH || '/harness/'
 const CONFIG_FILENAME = 'deepseek-harness-client.json'
-const LOCAL_RUNTIME_VERSION = '0.4.9'
-const PLUGIN_VERSION = '0.4.9'
+const LOCAL_RUNTIME_VERSION = '0.4.10'
+const PLUGIN_VERSION = '0.4.10'
 const RELEASE_CACHE_MS = 5 * 60_000
 const RETRYABLE_FILESYSTEM_ERRORS = new Set(['EACCES', 'EBUSY', 'ENOTEMPTY', 'EPERM'])
 
