@@ -44,10 +44,10 @@ pnpm dsh web
 
 `ljwei-stak` 发行版包含 Model Router + GALGame 插件、独立插件市场以及内置本地运行时。请从 [GitHub Release 发布页](https://github.com/ljwei-stak/deepseek-harness/releases/latest) 下载最新版安装包：
 
-- [Windows x64 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-Setup-0.4.13-Windows-x64.exe)
-- [Debian/Ubuntu `.deb` 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-0.4.13-Linux-amd64.deb)
-- [Fedora/RHEL/openEuler `.rpm` 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-0.4.13-Linux-x86_64.rpm)
-- [SHA256 校验文件](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/SHA256SUMS-0.4.13.txt)
+- [Windows x64 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-Setup-0.5.0-Windows-x64.exe)
+- [Debian/Ubuntu `.deb` 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-0.5.0-Linux-amd64.deb)
+- [Fedora/RHEL/openEuler `.rpm` 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-0.5.0-Linux-x86_64.rpm)
+- [SHA256 校验文件](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/SHA256SUMS-0.5.0.txt)
 
 Windows 用户可以直接运行安装程序。Debian 系统可以使用 `sudo apt install ./<package>.deb` 安装；Fedora 系统可以使用 `sudo dnf install ./<package>.rpm` 安装。安装后，在桌面客户端中选择服务器端或本地运行。本地模式使用安装包内置的 Node.js 与 pnpm，不需要另外安装系统 Node.js。升级时，用户设置、模型凭据和任务历史会保留在用户数据目录中。
 
