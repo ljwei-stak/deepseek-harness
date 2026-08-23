@@ -1,0 +1,111 @@
+name: Publish desktop release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Model Router + GALGame release tag
+        required: true
+        default: model-router-galgame-0.4.13
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+  ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+
+jobs:
+  windows:
+    name: Build and upload Windows installer
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: master
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows desktop assets
+        shell: pwsh
+        run: ./scripts/build_desktop.ps1
+
+      - name: Upload Windows assets to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $release = Get-ChildItem -LiteralPath build/release/$env:RELEASE_TAG -ErrorAction SilentlyContinue
+          if ($null -eq $release) {
+            $version = $env:RELEASE_TAG -replace '^model-router-galgame-', ''
+            $release = Get-Item -LiteralPath "build/release/$version"
+          }
+          $desktopDist = Resolve-Path desktop/dist
+          $assets = @(
+            (Join-Path $desktopDist "DeepSeek-Harness-ModelRouter-GALGame-Setup-$($env:RELEASE_TAG -replace '^model-router-galgame-', '')-Windows-x64.exe"),
+            (Join-Path $desktopDist "DeepSeek-Harness-ModelRouter-GALGame-Setup-$($env:RELEASE_TAG -replace '^model-router-galgame-', '')-Windows-x64.exe.blockmap")
+          )
+          $assets += Get-ChildItem -LiteralPath $release.FullName -File | Select-Object -ExpandProperty FullName
+          gh release upload $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --clobber @assets
+
+  linux:
+    name: Build and upload Linux packages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: master
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Harness and Web artifacts
+        run: |
+          pnpm run build
+          pnpm --dir apps/web run build
+
+      - name: Build Linux desktop packages
+        run: bash scripts/build_desktop_linux.sh
+
+      - name: Upload Linux assets to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./desktop/package.json').version")
+          gh release upload "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            "desktop/dist/DeepSeek-Harness-ModelRouter-GALGame-${version}-Linux-amd64.deb" \
+            "desktop/dist/DeepSeek-Harness-ModelRouter-GALGame-${version}-Linux-x86_64.rpm" \
+            "desktop/dist/SHA256SUMS-Linux.txt"
+
+  publish:
+    name: Publish stable Release
+    needs: [windows, linux]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Publish Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
