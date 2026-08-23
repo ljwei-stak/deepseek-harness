@@ -720,7 +720,35 @@ function findPackageDirectory(entry, expectedName) {
 function resolveDependencyDirectory(source, name, allowedRoot, optional) {
   assertPackageName(name)
   try {
-    const entry = require.resolve(name, { paths: [source] })
+    let entry
+    try {
+      entry = require.resolve(name, { paths: [source] })
+    } catch (error) {
+      // Some valid ESM packages intentionally expose only subpaths (for
+      // example @codemirror/legacy-modes) and therefore have no resolvable
+      // package root. pnpm still places their package directory directly in
+      // the dependency closure; resolve its explicitly exported manifest as
+      // the resolution anchor so the complete dependency closure can be
+      // copied. The direct path fallback handles packages that export neither
+      // a root entry nor ./package.json.
+      if (!['ERR_PACKAGE_PATH_NOT_EXPORTED', 'MODULE_NOT_FOUND'].includes(error?.code)) throw error
+      try {
+        entry = require.resolve(`${name}/package.json`, { paths: [source] })
+      } catch {
+        let direct = path.join(source, 'node_modules', ...name.split('/'))
+        let current = source
+        while (!fs.existsSync(path.join(direct, 'package.json'))) {
+          const parent = path.dirname(current)
+          if (parent === current) {
+            if (optional && error?.code === 'MODULE_NOT_FOUND') return null
+            throw error
+          }
+          current = parent
+          direct = path.join(current, 'node_modules', ...name.split('/'))
+        }
+        entry = path.join(direct, 'package.json')
+      }
+    }
     const directory = fs.realpathSync(findPackageDirectory(entry, name))
     if (!isInsideDirectory(allowedRoot, directory)) {
       throw new Error(`依赖 ${name} 解析到了运行时之外：${directory}`)

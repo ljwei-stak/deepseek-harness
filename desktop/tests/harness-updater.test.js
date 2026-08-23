@@ -287,3 +287,35 @@ test('profile receives the complete dsh-web-ui aggregate and child closure', asy
     await updater.safeRemoveTree(root)
   }
 })
+
+test('profile copies dependencies that expose only subpaths', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-subpath-package-'))
+  const runtime = path.join(root, 'runtime')
+  const home = path.join(root, 'home')
+  const packageRoot = path.join(runtime, 'node_modules', 'dsh-better-sidebar')
+  const dependency = path.join(packageRoot, 'node_modules', '@codemirror', 'legacy-modes')
+  try {
+    fs.mkdirSync(dependency, { recursive: true })
+    fs.writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({
+      name: 'dsh-better-sidebar',
+      version: '0.15.2',
+      main: 'index.js',
+      dependencies: { '@codemirror/legacy-modes': '6.5.3' },
+    }, null, 2))
+    fs.writeFileSync(path.join(packageRoot, 'index.js'), 'module.exports = {}\n')
+    fs.writeFileSync(path.join(dependency, 'package.json'), JSON.stringify({
+      name: '@codemirror/legacy-modes',
+      version: '6.5.3',
+      type: 'module',
+      exports: { './mode/*': './mode/*.js' },
+    }, null, 2))
+    fs.mkdirSync(path.join(dependency, 'mode'), { recursive: true })
+    fs.writeFileSync(path.join(dependency, 'mode', 'shell.js'), 'export const shell = {}\n')
+
+    const target = await updater.syncRuntimePackageToProfile(runtime, home, 'dsh-better-sidebar', '0.15.2')
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', '@codemirror', 'legacy-modes', 'package.json')), true)
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', '@codemirror', 'legacy-modes', 'mode', 'shell.js')), true)
+  } finally {
+    await updater.safeRemoveTree(root)
+  }
+})

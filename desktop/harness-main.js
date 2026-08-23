@@ -8,7 +8,10 @@ const updater = require('./harness-updater')
 const DEFAULT_REMOTE_ORIGIN = process.env.DEEPSEEK_HARNESS_REMOTE_ORIGIN || 'https://www.jianweilimarx.top'
 const DEFAULT_REMOTE_PATH = process.env.DEEPSEEK_HARNESS_REMOTE_PATH || '/harness/'
 const CONFIG_FILENAME = 'deepseek-harness-client.json'
-const LOCAL_RUNTIME_VERSION = '0.4.11'
+// Keep the cache key in lockstep with the packaged runtime.  A stale value
+// makes a newly installed desktop build reuse an older extracted dependency
+// tree, which is especially harmful when pnpm package exports have changed.
+const LOCAL_RUNTIME_VERSION = '0.5.0'
 const PLUGIN_VERSION = '0.4.10'
 const MARKET_VERSION = '1.18.0'
 const WEB_UI_VERSION = '0.2.9'
