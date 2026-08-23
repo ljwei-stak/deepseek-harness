@@ -40,6 +40,19 @@ pnpm dsh web
 
 `pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
 
+## 桌面客户端
+
+`ljwei-stak` 发行版包含 Model Router + GALGame 插件、独立插件市场以及内置本地运行时。请从 [GitHub Release 发布页](https://github.com/ljwei-stak/deepseek-harness/releases/latest) 下载最新版安装包：
+
+- [Windows x64 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-Setup-0.4.13-Windows-x64.exe)
+- [Debian/Ubuntu `.deb` 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-0.4.13-Linux-amd64.deb)
+- [Fedora/RHEL/openEuler `.rpm` 安装包](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/DeepSeek-Harness-ModelRouter-GALGame-0.4.13-Linux-x86_64.rpm)
+- [SHA256 校验文件](https://github.com/ljwei-stak/deepseek-harness/releases/latest/download/SHA256SUMS-0.4.13.txt)
+
+Windows 用户可以直接运行安装程序。Debian 系统可以使用 `sudo apt install ./<package>.deb` 安装；Fedora 系统可以使用 `sudo dnf install ./<package>.rpm` 安装。安装后，在桌面客户端中选择服务器端或本地运行。本地模式使用安装包内置的 Node.js 与 pnpm，不需要另外安装系统 Node.js。升级时，用户设置、模型凭据和任务历史会保留在用户数据目录中。
+
+Release 同时包含桌面端一键更新控件所需的插件压缩包和更新清单。插件独立安装与故障排查请参阅[桌面安装指南](docs/cookbook/model-router-galgame-installation.zh.md)。
+
 ## 社区与支持
 
 - 欢迎通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
