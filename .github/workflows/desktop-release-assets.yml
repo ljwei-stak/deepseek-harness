@@ -57,7 +57,10 @@ jobs:
             (Join-Path $desktopDist "DeepSeek-Harness-ModelRouter-GALGame-Setup-$($env:RELEASE_TAG -replace '^model-router-galgame-', '')-Windows-x64.exe"),
             (Join-Path $desktopDist "DeepSeek-Harness-ModelRouter-GALGame-Setup-$($env:RELEASE_TAG -replace '^model-router-galgame-', '')-Windows-x64.exe.blockmap")
           )
-          $assets += Get-ChildItem -LiteralPath $release.FullName -File | Select-Object -ExpandProperty FullName
+          $blockmapName = "DeepSeek-Harness-ModelRouter-GALGame-Setup-$($env:RELEASE_TAG -replace '^model-router-galgame-', '')-Windows-x64.exe.blockmap"
+          $assets += Get-ChildItem -LiteralPath $release.FullName -File |
+            Where-Object { $_.Name -ne $blockmapName } |
+            Select-Object -ExpandProperty FullName
           gh release upload $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --clobber @assets
 
   linux:
