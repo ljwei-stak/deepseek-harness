@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/integrations/ljwei-stak/AGENTS.md
+AGENTS.md: c8767b64b6dc7dd52e621a539342e2a7799b608c
+AGENTS.zh.md: 8b65e3714215a18e98532fd10e37e50ad0092a25

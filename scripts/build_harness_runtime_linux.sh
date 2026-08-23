@@ -13,6 +13,8 @@ pnpm_launcher="$tools_target_directory/pnpm"
 market_source="$project_root/plugins/dsh-market"
 router_source="$project_root/plugins/model-router-galgame"
 router_runtime="$project_root/node_modules/model-router-galgame"
+web_ui_runtime="$project_root/node_modules/@linxin666/dsh-web-ui-all"
+web_ui_source="$(readlink -f "$web_ui_runtime")"
 
 require_file() {
   local filename="$1"
@@ -28,6 +30,8 @@ require_file "$project_root/apps/web/dist/index.html" "built Web frontend"
 require_file "$market_source/package.json" "independent plugin market source"
 require_file "$project_root/node_modules/dshmarket/lib/index.js" "installed dshmarket Host bundle"
 require_file "$project_root/node_modules/dshmarket/client/client.js" "installed dshmarket Web bundle"
+require_file "$project_root/node_modules/@linxin666/dsh-web-ui-all/package.json" "installed dsh-web-ui aggregate package"
+require_file "$project_root/node_modules/@linxin666/dsh-web-ui-all/lib/client.js" "installed dsh-web-ui aggregate Web bundle"
 require_file "$pnpm_source/bin/pnpm.cjs" "packaged pnpm runtime"
 
 for relative_path in package.json .dsh-plugin/index.mjs .dsh-plugin/client.js; do
@@ -39,6 +43,13 @@ done
 rm -rf -- "$router_runtime"
 mkdir -p -- "$router_runtime"
 cp -a -- "$router_source/." "$router_runtime/"
+
+# The aggregate is installed from a local archive and is normally a pnpm
+# symlink. Materialize its package directory so the extracted runtime can be
+# used without preserving workspace symlink permissions.
+rm -rf -- "$web_ui_runtime"
+mkdir -p -- "$web_ui_runtime"
+cp -a -- "$web_ui_source/." "$web_ui_runtime/"
 
 node_source="${DEEPSEEK_HARNESS_NODE_SOURCE:-}"
 if [[ -z "$node_source" ]]; then

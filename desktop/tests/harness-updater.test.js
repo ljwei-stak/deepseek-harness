@@ -250,3 +250,40 @@ test('profile receives a symlink-free runtime package dependency closure', async
     await updater.safeRemoveTree(root)
   }
 })
+
+test('profile receives the complete dsh-web-ui aggregate and child closure', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-web-ui-profile-'))
+  const runtime = path.join(root, 'runtime')
+  const home = path.join(root, 'home')
+  const nodeModules = path.join(runtime, 'node_modules')
+
+  function writePackage(name, version, dependencies = {}) {
+    const directory = path.join(nodeModules, ...name.split('/'))
+    fs.mkdirSync(directory, { recursive: true })
+    fs.writeFileSync(path.join(directory, 'package.json'), `${JSON.stringify({
+      name,
+      version,
+      main: 'index.js',
+      dependencies,
+    }, null, 2)}\n`)
+    fs.writeFileSync(path.join(directory, 'index.js'), `module.exports = ${JSON.stringify(name)}\n`)
+  }
+
+  try {
+    writePackage('@linxin666/dsh-web-ui-all', '0.2.9', {
+      '@linxin666/dsh-client-ui-market': '0.2.9',
+      '@mlgbnb/dsh-archive-manager': '1.0.7',
+    })
+    writePackage('@linxin666/dsh-client-ui-market', '0.2.9', { yaml: '2.8.2' })
+    writePackage('@mlgbnb/dsh-archive-manager', '1.0.7')
+    writePackage('yaml', '2.8.2')
+
+    const target = await updater.syncRuntimePackageToProfile(runtime, home, '@linxin666/dsh-web-ui-all', '0.2.9')
+    assert.equal(target, path.join(home, 'profiles', 'node_modules', '@linxin666', 'dsh-web-ui-all'))
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', '@linxin666', 'dsh-client-ui-market', 'package.json')), true)
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', '@mlgbnb', 'dsh-archive-manager', 'package.json')), true)
+    assert.equal(fs.existsSync(path.join(target, 'node_modules', '@linxin666', 'dsh-client-ui-market', 'node_modules', 'yaml', 'package.json')), true)
+  } finally {
+    await updater.safeRemoveTree(root)
+  }
+})

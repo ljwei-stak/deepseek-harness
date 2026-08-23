@@ -16,3 +16,10 @@
 - insert:
     - id: dsh-market
       name: dshmarket
+
+# The reviewed dsh-web-ui aggregate and all of its child packages are bundled
+# with the desktop runtime. This avoids the plugin market's build-script prompt
+# for native and tunnel dependencies on a fresh installation.
+- insert:
+    - id: dsh-web-ui-all
+      name: '@linxin666/dsh-web-ui-all'

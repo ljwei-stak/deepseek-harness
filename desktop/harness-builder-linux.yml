@@ -5,8 +5,8 @@ linux:
   maintainer: Jianwei Li <ljwei-stak@users.noreply.github.com>
   vendor: ljwei-stak
   executableName: deepseek-harness
-  synopsis: Multi-model agent workspace with Model Router and GALGame view
-  description: DeepSeek Harness desktop client with a bundled local runtime, Model Router + GALGame, and the independent plugin market.
+  synopsis: Multi-model workspace with Model Router, GALGame, and dsh-web-ui
+  description: DeepSeek Harness desktop client with a bundled local runtime, Model Router + GALGame, the independent plugin market, and the complete dsh-web-ui plugin suite.
   target:
     - deb
     - rpm

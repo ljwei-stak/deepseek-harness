@@ -13,6 +13,10 @@ $pnpmSource = Join-Path $projectRoot 'node_modules\pnpm'
 $pnpmTarget = Join-Path $toolsTargetDirectory 'pnpm'
 $pnpmLauncher = Join-Path $toolsTargetDirectory 'pnpm.cmd'
 $marketSource = Join-Path $projectRoot 'plugins\dsh-market'
+$webUiRuntime = Join-Path $projectRoot 'node_modules\@linxin666\dsh-web-ui-all'
+$webUiLink = [IO.DirectoryInfo]$webUiRuntime
+$webUiTarget = $webUiLink.ResolveLinkTarget($true)
+$webUiSource = if ($null -eq $webUiTarget) { $webUiRuntime } else { $webUiTarget.FullName }
 $nodeModulesRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'node_modules'))
 $runtimePackages = @(
     @{
@@ -20,6 +24,12 @@ $runtimePackages = @(
         Source = Join-Path $projectRoot 'plugins\model-router-galgame'
         Runtime = Join-Path $projectRoot 'node_modules\model-router-galgame'
         Required = @('package.json', '.dsh-plugin\index.mjs', '.dsh-plugin\client.js')
+    },
+    @{
+        Description = 'dsh-web-ui aggregate plugin'
+        Source = $webUiSource
+        Runtime = $webUiRuntime
+        Required = @('package.json', 'lib\index.js', 'lib\client.js')
     }
 )
 
@@ -34,6 +44,8 @@ Require-Path (Join-Path $projectRoot 'apps\web\dist\index.html') 'built Web fron
 Require-Path (Join-Path $marketSource 'package.json') 'independent plugin market source'
 Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\lib\index.js') 'installed dshmarket Host bundle'
 Require-Path (Join-Path $projectRoot 'node_modules\dshmarket\client\client.js') 'installed dshmarket Web bundle'
+Require-Path (Join-Path $projectRoot 'node_modules\@linxin666\dsh-web-ui-all\package.json') 'installed dsh-web-ui aggregate package'
+Require-Path (Join-Path $projectRoot 'node_modules\@linxin666\dsh-web-ui-all\lib\client.js') 'installed dsh-web-ui aggregate Web bundle'
 Require-Path (Join-Path $pnpmSource 'bin\pnpm.cjs') 'packaged pnpm runtime'
 
 # Model Router is a repository-only package, so materialize it as a real
@@ -46,6 +58,12 @@ foreach ($package in $runtimePackages) {
     }
     foreach ($relativePath in $package.Required) {
         Require-Path (Join-Path $package.Source $relativePath) "$($package.Description) source file"
+    }
+    if ([String]::Equals([IO.Path]::GetFullPath($package.Source), $runtimeFull, [StringComparison]::OrdinalIgnoreCase)) {
+        foreach ($relativePath in $package.Required) {
+            Require-Path (Join-Path $runtimeFull $relativePath) "$($package.Description) runtime file"
+        }
+        continue
     }
     if (Test-Path -LiteralPath $runtimeFull) {
         Remove-Item -LiteralPath $runtimeFull -Recurse -Force

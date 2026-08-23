@@ -11,6 +11,7 @@ const CONFIG_FILENAME = 'deepseek-harness-client.json'
 const LOCAL_RUNTIME_VERSION = '0.4.11'
 const PLUGIN_VERSION = '0.4.10'
 const MARKET_VERSION = '1.18.0'
+const WEB_UI_VERSION = '0.2.9'
 const RELEASE_CACHE_MS = 5 * 60_000
 const RETRYABLE_FILESYSTEM_ERRORS = new Set(['EACCES', 'EBUSY', 'ENOTEMPTY', 'EPERM'])
 
@@ -146,6 +147,9 @@ function runtimeRequiredFiles(root) {
     path.join(root, 'node_modules', 'dshmarket', 'package.json'),
     path.join(root, 'node_modules', 'dshmarket', 'lib', 'index.js'),
     path.join(root, 'node_modules', 'dshmarket', 'client', 'client.js'),
+    path.join(root, 'node_modules', '@linxin666', 'dsh-web-ui-all', 'package.json'),
+    path.join(root, 'node_modules', '@linxin666', 'dsh-web-ui-all', 'lib', 'index.js'),
+    path.join(root, 'node_modules', '@linxin666', 'dsh-web-ui-all', 'lib', 'client.js'),
     path.join(root, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'),
     path.join(root, 'vendor', 'cordis', 'lib', 'index.js'),
   ]
@@ -159,6 +163,10 @@ function validateExtractedRuntime(root) {
   const marketPackage = JSON.parse(fs.readFileSync(path.join(root, 'node_modules', 'dshmarket', 'package.json'), 'utf8'))
   if (marketPackage.version !== MARKET_VERSION) {
     throw new Error(`插件市场版本不匹配：需要 ${MARKET_VERSION}，实际为 ${marketPackage.version || '未知'}`)
+  }
+  const webUiPackage = JSON.parse(fs.readFileSync(path.join(root, 'node_modules', '@linxin666', 'dsh-web-ui-all', 'package.json'), 'utf8'))
+  if (webUiPackage.version !== WEB_UI_VERSION) {
+    throw new Error(`dsh-web-ui 版本不匹配：需要 ${WEB_UI_VERSION}，实际为 ${webUiPackage.version || '未知'}`)
   }
 }
 
@@ -184,6 +192,17 @@ async function installEffectivePlugin(runtimeRoot, home) {
 async function installPluginMarket(runtimeRoot, home) {
   const target = await updater.syncRuntimePackageToProfile(runtimeRoot, home, 'dshmarket', MARKET_VERSION)
   debugLog(`Using independent plugin market ${MARKET_VERSION}: ${target}`)
+  return target
+}
+
+async function installWebUi(runtimeRoot, home) {
+  const target = await updater.syncRuntimePackageToProfile(
+    runtimeRoot,
+    home,
+    '@linxin666/dsh-web-ui-all',
+    WEB_UI_VERSION,
+  )
+  debugLog(`Using bundled dsh-web-ui suite ${WEB_UI_VERSION}: ${target}`)
   return target
 }
 
@@ -406,6 +425,7 @@ async function startLocalHarness() {
   fs.mkdirSync(home, { recursive: true })
   await installEffectivePlugin(runtimeRoot, home)
   await installPluginMarket(runtimeRoot, home)
+  await installWebUi(runtimeRoot, home)
   const patch = localPatchPath()
   // The web command passes unknown options through to the web app. Keep the
   // launcher-owned patch option before --port so it is consumed by dsh.

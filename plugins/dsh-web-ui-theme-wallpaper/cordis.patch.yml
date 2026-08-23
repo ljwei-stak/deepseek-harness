@@ -1,0 +1,4 @@
+# Independent theme and wallpaper center for DeepSeek Harness web profiles.
+- insert:
+    - id: dsh-web-ui-theme-wallpaper
+      name: dsh-web-ui-theme-wallpaper

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/integrations/ljwei-stak/model-router-galgame/README.md
+README.md: d4fe089b80db5b55a18964da72fca685b116358b
+README.zh.md: faf22daa7073e0c7d9db822db0b24eb9ce474769

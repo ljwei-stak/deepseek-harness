@@ -4,7 +4,7 @@ asar: true
 electronDist: node_modules/electron/dist
 extraMetadata:
   main: harness-main.js
-  version: 0.4.13
+  version: 0.5.0
 directories:
   output: dist
 files:

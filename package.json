@@ -185,6 +185,26 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
+    "@linxin666/dsh-chat-recovery": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-chat-recovery-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-aionui-panel": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-aionui-panel-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-community-plugins": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-community-plugins-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-git-graph": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-git-graph-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-market": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-market-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-plugin-manager": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-plugin-manager-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-skill-explorer": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-skill-explorer-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-skin-center": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-skin-center-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-task-board": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-task-board-0.2.9.tgz",
+    "@linxin666/dsh-client-ui-web-ui-settings": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-web-ui-settings-0.2.9.tgz",
+    "@linxin666/dsh-desktop-launcher": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-desktop-launcher-0.2.9.tgz",
+    "@linxin666/dsh-doctor": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-doctor-0.2.9.tgz",
+    "@linxin666/dsh-liangshen": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-liangshen-0.2.9.tgz",
+    "@linxin666/dsh-pet": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-pet-0.2.9.tgz",
+    "@linxin666/dsh-remote-web-ui": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-remote-web-ui-0.2.9.tgz",
+    "@linxin666/dsh-ssh": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-ssh-0.2.9.tgz",
+    "@linxin666/dsh-tool-describe-image": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-tool-describe-image-0.2.9.tgz",
+    "@linxin666/dsh-web-ui-all": "file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-web-ui-all-0.2.9.tgz",
+    "@mlgbnb/dsh-archive-manager": "1.0.7",
+    "dsh-better-sidebar": "0.15.2",
     "dshmarket": "1.18.0",
     "pnpm": "11.7.0"
   }

@@ -8,6 +8,7 @@ packages:
   # Product assemblies over the package tier; apps/cli owns the `dsh` bin.
   - apps/*
   - website
+
   # The runnable demo leaves join as ONE workspace member: examples/package.json
   # declares the union of every leaf's cordis.yml plugins as workspace:*, so a
   # plain-node (`:lib`) boot of any leaf (examples/<leaf>/cordis.yml) resolves its
@@ -27,6 +28,27 @@ linkWorkspacePackages: true
 overrides:
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  # The upstream aggregate package refers to sibling packages by registry
+  # version. Pin every child to the verified archive from this adapter so a
+  # clean checkout never tries to fetch unpublished fork packages.
+  '@linxin666/dsh-chat-recovery': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-chat-recovery-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-aionui-panel': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-aionui-panel-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-community-plugins': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-community-plugins-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-git-graph': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-git-graph-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-market': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-market-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-plugin-manager': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-plugin-manager-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-skill-explorer': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-skill-explorer-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-skin-center': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-skin-center-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-task-board': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-task-board-0.2.9.tgz'
+  '@linxin666/dsh-client-ui-web-ui-settings': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-client-ui-web-ui-settings-0.2.9.tgz'
+  '@linxin666/dsh-desktop-launcher': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-desktop-launcher-0.2.9.tgz'
+  '@linxin666/dsh-doctor': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-doctor-0.2.9.tgz'
+  '@linxin666/dsh-liangshen': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-liangshen-0.2.9.tgz'
+  '@linxin666/dsh-pet': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-pet-0.2.9.tgz'
+  '@linxin666/dsh-remote-web-ui': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-remote-web-ui-0.2.9.tgz'
+  '@linxin666/dsh-ssh': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-ssh-0.2.9.tgz'
+  '@linxin666/dsh-tool-describe-image': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-tool-describe-image-0.2.9.tgz'
+  '@linxin666/dsh-web-ui-all': 'file:plugins/dsh-web-ui-adapter/vendor/linxin666-dsh-web-ui-all-0.2.9.tgz'
 
 peerDependencyRules:
   allowedVersions:
@@ -38,10 +60,15 @@ peerDependencyRules:
 # default and only allow scripts we need. esbuild (native binary) and lefthook
 # (git hooks) genuinely need theirs.
 allowBuilds:
+  # Reviewed dsh-web-ui runtime dependencies. Desktop installers build these
+  # for their target OS so users do not have to approve scripts in dsh-market.
+  cloudflared: true
+  cpu-features: true
   esbuild: true
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.
   node-pty: true
+  ssh2: true
   # Pulled in by @earendil-works/pi-ai (optional LLM API backend). pnpm lists
   # them only because they ship lifecycle scripts, but those are no-ops we don't
   # need, so we deny them — install still succeeds.
@@ -68,6 +95,7 @@ minimumReleaseAgeExclude:
   - node-addon-require-builtin-win32-x64-msvc@0.1.4
   - node-addon-require-builtin@0.1.4
   - dshmarket@1.18.0
+  - dsh-better-sidebar@0.15.2
 
 patchedDependencies:
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch

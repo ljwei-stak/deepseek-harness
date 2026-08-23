@@ -122,6 +122,25 @@ External packages **directly declared** only by repository tooling, test infrast
 | Package | License |
 | --- | --- |
 | [`@braintree/sanitize-url`](https://github.com/braintree/sanitize-url) | MIT |
+| [`@linxin666/dsh-chat-recovery`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-aionui-panel`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-community-plugins`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-git-graph`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-market`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-plugin-manager`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-skill-explorer`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-skin-center`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-task-board`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-client-ui-web-ui-settings`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-desktop-launcher`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-doctor`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-liangshen`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-pet`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-remote-web-ui`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-ssh`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-tool-describe-image`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@linxin666/dsh-web-ui-all`](https://github.com/ljwei-stak/dsh-web-ui) | BSD-3-Clause |
+| [`@mlgbnb/dsh-archive-manager`](https://github.com/z953218350/dsh-archive-manager) | MIT |
 | [`@modelcontextprotocol/server-everything`](https://github.com/modelcontextprotocol/servers) | MIT / Apache-2.0 |
 | [`@modelcontextprotocol/server-filesystem`](https://github.com/modelcontextprotocol/servers) | MIT / Apache-2.0 |
 | [`@stylistic/eslint-plugin`](https://github.com/eslint-stylistic/eslint-stylistic) | MIT |
@@ -144,6 +163,7 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`cytoscape-cose-bilkent`](https://github.com/cytoscape/cytoscape.js-cose-bilkent) | MIT |
 | [`dayjs`](https://github.com/iamkun/dayjs) | MIT |
 | [`debug`](https://github.com/debug-js/debug) | MIT |
+| [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar) | MIT |
 | [`dshmarket`](https://github.com/dsh-market/dsh-market) | MIT |
 | [`esbuild`](https://github.com/evanw/esbuild) | MIT |
 | [`eslint-plugin-sonarjs`](https://github.com/SonarSource/SonarJS) | LGPL-3.0-only |

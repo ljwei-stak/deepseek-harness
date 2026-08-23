@@ -75,6 +75,25 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   '@modelcontextprotocol/server-filesystem': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
   // No repository field in the published manifest.
   'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
+  // The dsh-web-ui fork archives omit repository metadata in their packed manifests.
+  '@linxin666/dsh-chat-recovery': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-aionui-panel': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-community-plugins': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-git-graph': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-market': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-plugin-manager': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-skill-explorer': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-skin-center': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-task-board': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-client-ui-web-ui-settings': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-desktop-launcher': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-doctor': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-liangshen': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-pet': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-remote-web-ui': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-ssh': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-tool-describe-image': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
+  '@linxin666/dsh-web-ui-all': { license: 'BSD-3-Clause', repo: 'https://github.com/ljwei-stak/dsh-web-ui' },
 }
 
 /**
