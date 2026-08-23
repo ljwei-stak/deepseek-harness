@@ -46,10 +46,14 @@ cp -a -- "$router_source/." "$router_runtime/"
 
 # The aggregate is installed from a local archive and is normally a pnpm
 # symlink. Materialize its package directory so the extracted runtime can be
-# used without preserving workspace symlink permissions.
-rm -rf -- "$web_ui_runtime"
-mkdir -p -- "$web_ui_runtime"
-cp -a -- "$web_ui_source/." "$web_ui_runtime/"
+# used without preserving workspace symlink permissions. On a repeated build
+# the directory is already materialized and is its own source; leave it in
+# place instead of asking cp to copy a directory onto itself.
+if [[ -L "$web_ui_runtime" ]]; then
+  rm -rf -- "$web_ui_runtime"
+  mkdir -p -- "$web_ui_runtime"
+  cp -a -- "$web_ui_source/." "$web_ui_runtime/"
+fi
 
 node_source="${DEEPSEEK_HARNESS_NODE_SOURCE:-}"
 if [[ -z "$node_source" ]]; then
