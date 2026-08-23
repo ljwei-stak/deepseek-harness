@@ -23,6 +23,16 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Failed to install desktop packaging dependencies.'
 }
 
+# npm may skip Electron's postinstall script on CI.  Download the matching
+# Electron runtime explicitly so electron-builder can package the application.
+$electronInstall = Join-Path $desktopRoot 'node_modules\electron\install.js'
+if (-not (Test-Path -LiteralPath (Join-Path $desktopRoot 'node_modules\electron\dist\electron.exe'))) {
+    & node $electronInstall
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Failed to download the Electron runtime.'
+    }
+}
+
 & npm.cmd --prefix $desktopRoot run dist:harness:win
 if ($LASTEXITCODE -ne 0) {
     throw 'Failed to build the Windows installer.'
