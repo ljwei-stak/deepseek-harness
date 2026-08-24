@@ -283,6 +283,20 @@ test('profile receives the complete dsh-web-ui aggregate and child closure', asy
     assert.equal(fs.existsSync(path.join(target, 'node_modules', '@linxin666', 'dsh-client-ui-market', 'package.json')), true)
     assert.equal(fs.existsSync(path.join(target, 'node_modules', '@mlgbnb', 'dsh-archive-manager', 'package.json')), true)
     assert.equal(fs.existsSync(path.join(target, 'node_modules', '@linxin666', 'dsh-client-ui-market', 'node_modules', 'yaml', 'package.json')), true)
+
+    // Existing desktop profiles can contain a child package copied by the
+    // previous shallow installer. A version match alone must not preserve
+    // that incomplete tree during an upgrade.
+    const childTarget = await updater.syncRuntimePackageToProfile(
+      runtime,
+      home,
+      '@linxin666/dsh-client-ui-market',
+      '0.2.9',
+    )
+    assert.equal(fs.existsSync(path.join(childTarget, 'node_modules', 'yaml', 'package.json')), true)
+    await updater.safeRemoveTree(path.join(childTarget, 'node_modules', 'yaml'))
+    await updater.syncRuntimePackageToProfile(runtime, home, '@linxin666/dsh-client-ui-market', '0.2.9')
+    assert.equal(fs.existsSync(path.join(childTarget, 'node_modules', 'yaml', 'package.json')), true)
   } finally {
     await updater.safeRemoveTree(root)
   }

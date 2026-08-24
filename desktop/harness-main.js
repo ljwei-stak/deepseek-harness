@@ -16,7 +16,7 @@ const CONFIG_FILENAME = 'deepseek-harness-client.json'
 // Keep the cache key in lockstep with the packaged runtime.  A stale value
 // makes a newly installed desktop build reuse an older extracted dependency
 // tree, which is especially harmful when pnpm package exports have changed.
-const LOCAL_RUNTIME_VERSION = '0.5.1'
+const LOCAL_RUNTIME_VERSION = '0.5.2'
 const PLUGIN_VERSION = '0.4.10'
 const MARKET_VERSION = '1.18.0'
 const WEB_UI_VERSION = '0.2.9'
@@ -210,19 +210,15 @@ async function installPluginMarket(runtimeRoot, home) {
 async function installWebUi(runtimeRoot, home) {
   const packages = webUiDesktop.WEB_UI_PACKAGES
   const aggregate = packages.find(([name]) => name === '@linxin666/dsh-web-ui-all')
-  const fullClosure = packages.filter(([name]) => (
-    name === '@linxin666/dsh-web-ui-all'
-      || name === 'dsh-better-sidebar'
-      || name === '@mlgbnb/dsh-archive-manager'
-  ))
-  const fullTargets = await Promise.all(fullClosure.map(([name, version]) => (
+  // Every child package declares runtime dependencies of its own. The old
+  // shallow-copy path assumed the aggregate package was always the only
+  // loader entry, but upgrades can leave a child package at the profile root
+  // where Node resolves its dependencies from that package directory. Copy
+  // and validate each closure so an existing profile is repaired atomically.
+  const installed = await Promise.all(packages.map(([name, version]) => (
     updater.syncRuntimePackageToProfile(runtimeRoot, home, name, version)
   )))
-  const shallowPackages = packages.filter(([name]) => !fullClosure.some(([fullName]) => fullName === name))
-  await Promise.all(shallowPackages.map(([name, version]) => (
-    updater.syncRuntimePackageRootToProfile(runtimeRoot, home, name, version)
-  )))
-  const aggregateTarget = fullTargets[fullClosure.findIndex(([name]) => name === aggregate?.[0])]
+  const aggregateTarget = installed[packages.findIndex(([name]) => name === aggregate?.[0])]
   debugLog(`Using bundled dsh-web-ui suite ${WEB_UI_VERSION}: ${aggregateTarget}`)
   return aggregateTarget
 }
