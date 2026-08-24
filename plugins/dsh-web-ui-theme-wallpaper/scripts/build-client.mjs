@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -11,9 +11,32 @@ const OUTPUT = join(ROOT, '.dsh-plugin', 'client.js')
 const PLUGIN_ID = 'dsh-web-ui-theme-wallpaper'
 
 function resolveEsbuild() {
+  const binary = 'esbuild'
+  const pnpmRoot = join(CHECKOUT, 'node_modules', '.pnpm')
+  const pnpmCandidates = (() => {
+    try {
+      return readdirSync(pnpmRoot)
+        .filter(name => name.startsWith('esbuild@'))
+        .map(name => join(pnpmRoot, name, 'node_modules', 'esbuild', 'bin', binary))
+    } catch { return [] }
+  })()
+  const nativeCandidates = (() => {
+    try {
+      const prefix = '@esbuild+' + process.platform + '-' + process.arch + '@'
+      return readdirSync(pnpmRoot)
+        .filter(name => name.startsWith(prefix))
+        .map(name => join(pnpmRoot, name, 'node_modules', '@esbuild', `${process.platform}-${process.arch}`, `${binary}${process.platform === 'win32' ? '.exe' : ''}`))
+        .reverse()
+    } catch { return [] }
+  })()
   const candidates = [
-    join(CHECKOUT, 'node_modules', '.bin', process.platform === 'win32' ? 'esbuild.exe' : 'esbuild'),
-    join(CHECKOUT, 'node_modules', 'esbuild', 'bin', 'esbuild'),
+    join(CHECKOUT, 'node_modules', '@esbuild', `${process.platform}-${process.arch}`, binary),
+    join(CHECKOUT, 'node_modules', '@esbuild', `${process.platform}-${process.arch}`, `${binary}.exe`),
+    ...nativeCandidates,
+    ...pnpmCandidates,
+    join(CHECKOUT, 'node_modules', '.bin', binary),
+    join(CHECKOUT, 'node_modules', '.bin', `${binary}.exe`),
+    join(CHECKOUT, 'node_modules', 'esbuild', 'bin', binary),
   ]
   for (const candidate of candidates) {
     try { if (statSync(candidate).isFile()) return candidate } catch { /* continue */ }

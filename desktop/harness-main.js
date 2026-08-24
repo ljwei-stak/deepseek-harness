@@ -16,7 +16,7 @@ const CONFIG_FILENAME = 'deepseek-harness-client.json'
 // Keep the cache key in lockstep with the packaged runtime.  A stale value
 // makes a newly installed desktop build reuse an older extracted dependency
 // tree, which is especially harmful when pnpm package exports have changed.
-const LOCAL_RUNTIME_VERSION = '0.5.2'
+const LOCAL_RUNTIME_VERSION = '0.5.3'
 const PLUGIN_VERSION = '0.4.10'
 const MARKET_VERSION = '1.18.0'
 const WEB_UI_VERSION = '0.2.9'

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$Destination = (Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Downloads'),
-  [string]$Version = '0.5.2',
+  [string]$Version = '0.5.3',
   [switch]$RunInstaller
 )
 
@@ -33,15 +33,27 @@ $expectedHash = ([string]$manifest.desktop.sha256).ToUpperInvariant()
 if ($exeName -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]+\.exe$') { throw "Unsafe installer name in release manifest: $exeName" }
 if ($expectedHash -notmatch '^[0-9A-F]{64}$') { throw 'Release manifest contains an invalid installer SHA256.' }
 $parts = @($manifest.desktop.parts)
-if ($parts.Count -eq 0) { throw 'Release manifest does not contain installer parts.' }
 $staging = Join-Path $Destination ".deepseek-harness-model-router-$Version-parts"
 $output = Join-Path $Destination $exeName
 $destinationFull = [IO.Path]::GetFullPath($Destination).TrimEnd([IO.Path]::DirectorySeparatorChar)
 $stagingFull = [IO.Path]::GetFullPath($staging)
 if ([IO.Path]::GetDirectoryName($stagingFull) -ne $destinationFull) { throw 'Refusing to use a staging directory outside the download destination.' }
 
-New-Item -ItemType Directory -Force -Path $Destination,$staging | Out-Null
-foreach ($partNameValue in $parts) {
+New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+if ($parts.Count -eq 0) {
+  $temporary = "$output.download-$([guid]::NewGuid().ToString('N'))"
+  try {
+    Write-Host "Downloading $exeName ..."
+    Download-File "$baseUrl/$exeName" $temporary
+    $actualHash = (Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash.ToUpperInvariant()
+    if ($actualHash -ne $expectedHash) { throw "SHA256 mismatch. Expected $expectedHash, got $actualHash." }
+    Move-Item -LiteralPath $temporary -Destination $output -Force
+  } finally {
+    Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
+  }
+} else {
+  New-Item -ItemType Directory -Force -Path $staging | Out-Null
+  foreach ($partNameValue in $parts) {
   $partName = [string]$partNameValue
   if ($partName -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]+$') { throw "Unsafe part name in release manifest: $partName" }
   $partPath = Join-Path $staging $partName
@@ -50,30 +62,31 @@ foreach ($partNameValue in $parts) {
     Write-Host "Downloading $partName ..."
     Download-File $partUrl $partPath
   }
-}
-
-Write-Host "Combining installer ..."
-$inputStreams = @()
-$outputStream = [IO.File]::Create($output)
-try {
-  foreach ($partNameValue in $parts) {
-    $partName = [string]$partNameValue
-    $stream = [IO.File]::OpenRead((Join-Path $staging $partName))
-    $inputStreams += $stream
-    $stream.CopyTo($outputStream)
   }
-} finally {
-  foreach ($stream in $inputStreams) { $stream.Dispose() }
-  $outputStream.Dispose()
-}
 
-$actualHash = (Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash.ToUpperInvariant()
-if ($actualHash -ne $expectedHash) {
-  Remove-Item -LiteralPath $output -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath $stagingFull -Recurse -Force -ErrorAction SilentlyContinue
-  throw "SHA256 mismatch. Expected $expectedHash, got $actualHash."
+  Write-Host "Combining installer ..."
+  $inputStreams = @()
+  $outputStream = [IO.File]::Create($output)
+  try {
+    foreach ($partNameValue in $parts) {
+      $partName = [string]$partNameValue
+      $stream = [IO.File]::OpenRead((Join-Path $staging $partName))
+      $inputStreams += $stream
+      $stream.CopyTo($outputStream)
+    }
+  } finally {
+    foreach ($stream in $inputStreams) { $stream.Dispose() }
+    $outputStream.Dispose()
+  }
+
+  $actualHash = (Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash.ToUpperInvariant()
+  if ($actualHash -ne $expectedHash) {
+    Remove-Item -LiteralPath $output -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $stagingFull -Recurse -Force -ErrorAction SilentlyContinue
+    throw "SHA256 mismatch. Expected $expectedHash, got $actualHash."
+  }
+  Remove-Item -LiteralPath $stagingFull -Recurse -Force
 }
-Remove-Item -LiteralPath $stagingFull -Recurse -Force
 Write-Host "Installer ready: $output"
 Write-Host "SHA256: $actualHash"
 if ($RunInstaller) { Start-Process -FilePath $output }

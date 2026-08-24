@@ -7,7 +7,7 @@ import {
   normalizeSettings,
   safeWallpaperSource,
   wallpaperPresentation,
-} from '../.dsh-plugin/client/index.mjs'
+} from '../.dsh-plugin/client/core.mjs'
 
 test('exposes independent built-in themes and wallpapers', () => {
   assert.equal(THEMES.length, 4)

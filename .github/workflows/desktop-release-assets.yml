@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing Model Router + GALGame release tag
         required: true
-        default: model-router-galgame-0.5.2
+        default: model-router-galgame-0.5.3
         type: string
 
 permissions:

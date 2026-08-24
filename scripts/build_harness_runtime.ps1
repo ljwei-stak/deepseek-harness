@@ -14,9 +14,21 @@ $pnpmTarget = Join-Path $toolsTargetDirectory 'pnpm'
 $pnpmLauncher = Join-Path $toolsTargetDirectory 'pnpm.cmd'
 $marketSource = Join-Path $projectRoot 'plugins\dsh-market'
 $webUiRuntime = Join-Path $projectRoot 'node_modules\@linxin666\dsh-web-ui-all'
-$webUiLink = [IO.DirectoryInfo]$webUiRuntime
-$webUiTarget = $webUiLink.ResolveLinkTarget($true)
-$webUiSource = if ($null -eq $webUiTarget) { $webUiRuntime } else { $webUiTarget.FullName }
+$webUiItem = Get-Item -LiteralPath $webUiRuntime -Force
+$webUiTarget = $null
+if ($webUiItem.PSObject.Properties.Name -contains 'ResolvedTarget') {
+    $resolved = [string]$webUiItem.ResolvedTarget
+    if ($resolved -and -not [String]::Equals($resolved, $webUiItem.FullName, [StringComparison]::OrdinalIgnoreCase)) {
+        $webUiTarget = $resolved
+    }
+}
+if ($null -eq $webUiTarget -and $webUiItem.PSObject.Properties.Name -contains 'Target') {
+    $target = [string]$webUiItem.Target
+    if ($target) {
+        $webUiTarget = if ([IO.Path]::IsPathRooted($target)) { $target } else { Join-Path (Split-Path -Parent $webUiRuntime) $target }
+    }
+}
+$webUiSource = if ($null -eq $webUiTarget) { $webUiRuntime } else { $webUiTarget }
 $nodeModulesRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'node_modules'))
 $runtimePackages = @(
     @{
@@ -84,7 +96,7 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     throw 'Failed to archive the prebuilt Harness profile seed.'
 }
-Remove-Item -LiteralPath (Join-Path $buildRoot 'harness-profile') -Recurse -Force
+Remove-Item -LiteralPath (Join-Path $buildRoot 'harness-profile') -Recurse -Force -ErrorAction SilentlyContinue
 
 if (-not $NodeExecutable) {
     $NodeExecutable = (Get-Command node.exe -ErrorAction Stop).Source

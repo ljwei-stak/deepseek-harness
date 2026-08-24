@@ -5,7 +5,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { _electron: electron, expect, test } = require('@playwright/test')
 
-const HARNESS_RUNTIME_VERSION = '0.5.2'
+const HARNESS_RUNTIME_VERSION = '0.5.3'
 const WINDOWS_SYSTEM_PATH = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
 
 function listen(server) {

@@ -13,7 +13,7 @@ const seedRoot = path.join(buildRoot, 'harness-profile')
 await fs.rm(seedRoot, { recursive: true, force: true })
 await fs.mkdir(seedRoot, { recursive: true })
 
-const pluginSource = updater.selectPluginSource(projectRoot, seedRoot, '0.5.2', '0.4.10')
+const pluginSource = updater.selectPluginSource(projectRoot, seedRoot, '0.5.3', '0.4.10')
 const home = seedRoot
 await updater.syncPluginToProfile(pluginSource, home)
 await updater.syncRuntimePackageToProfile(projectRoot, home, 'dshmarket', '1.18.0')
@@ -25,7 +25,7 @@ for (const [name, version] of webUiDesktop.WEB_UI_PACKAGES) {
 webUiDesktop.ensureProfileBundles(home)
 await fs.writeFile(
   path.join(seedRoot, 'seed-version.json'),
-  `${JSON.stringify({ runtime: '0.5.2', plugin: '0.4.10', market: '1.18.0', webUi: '0.2.9' }, null, 2)}\n`,
+  `${JSON.stringify({ runtime: '0.5.3', plugin: '0.4.10', market: '1.18.0', webUi: '0.2.9' }, null, 2)}\n`,
   'utf8',
 )
 console.log(`Harness profile seed: ${seedRoot}`)
