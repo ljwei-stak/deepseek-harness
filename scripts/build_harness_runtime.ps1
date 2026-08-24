@@ -75,6 +75,17 @@ foreach ($package in $runtimePackages) {
     }
 }
 
+Write-Host 'Creating the prebuilt Harness profile seed ...'
+& node (Join-Path $PSScriptRoot 'build_harness_profile.mjs')
+if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to create the prebuilt Harness profile seed.'
+}
+& tar.exe -czf (Join-Path $buildRoot 'harness-profile.tar.gz') -C $buildRoot harness-profile
+if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to archive the prebuilt Harness profile seed.'
+}
+Remove-Item -LiteralPath (Join-Path $buildRoot 'harness-profile') -Recurse -Force
+
 if (-not $NodeExecutable) {
     $NodeExecutable = (Get-Command node.exe -ErrorAction Stop).Source
 }
@@ -119,7 +130,9 @@ $tarArguments = @(
     'native',
     'node_modules',
     'package.json',
-    'pnpm-workspace.yaml'
+    'pnpm-workspace.yaml',
+    '-C', $buildRoot,
+    'harness-profile.tar.gz'
 )
 & tar.exe @tarArguments
 if ($LASTEXITCODE -ne 0) {

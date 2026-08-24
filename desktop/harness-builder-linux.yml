@@ -1,6 +1,7 @@
 extends: ./harness-builder.yml
 linux:
   icon: assets/app-icon.png
+  syncDesktopName: true
   category: Development
   maintainer: Jianwei Li <ljwei-stak@users.noreply.github.com>
   vendor: ljwei-stak

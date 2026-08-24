@@ -4,6 +4,11 @@ const fs = require('node:fs')
 const net = require('node:net')
 const path = require('node:path')
 const updater = require('./harness-updater')
+const webUiDesktop = require(
+  fs.existsSync(path.join(__dirname, '..', 'plugins', 'dsh-web-ui-adapter', 'desktop', 'runtime-integration.cjs'))
+    ? path.join(__dirname, '..', 'plugins', 'dsh-web-ui-adapter', 'desktop', 'runtime-integration.cjs')
+    : path.join(process.resourcesPath, 'dsh-web-ui-desktop', 'runtime-integration.cjs'),
+)
 
 const DEFAULT_REMOTE_ORIGIN = process.env.DEEPSEEK_HARNESS_REMOTE_ORIGIN || 'https://www.jianweilimarx.top'
 const DEFAULT_REMOTE_PATH = process.env.DEEPSEEK_HARNESS_REMOTE_PATH || '/harness/'
@@ -11,7 +16,7 @@ const CONFIG_FILENAME = 'deepseek-harness-client.json'
 // Keep the cache key in lockstep with the packaged runtime.  A stale value
 // makes a newly installed desktop build reuse an older extracted dependency
 // tree, which is especially harmful when pnpm package exports have changed.
-const LOCAL_RUNTIME_VERSION = '0.5.0'
+const LOCAL_RUNTIME_VERSION = '0.5.1'
 const PLUGIN_VERSION = '0.4.10'
 const MARKET_VERSION = '1.18.0'
 const WEB_UI_VERSION = '0.2.9'
@@ -194,20 +199,34 @@ async function installEffectivePlugin(runtimeRoot, home) {
 
 async function installPluginMarket(runtimeRoot, home) {
   const target = await updater.syncRuntimePackageToProfile(runtimeRoot, home, 'dshmarket', MARKET_VERSION)
+  // dsh-web-ui ships the user-facing market panel. Keep dshmarket's host API
+  // (/dsh-market/status and catalog routes), but remove its duplicate browser
+  // face: both packages claim the same `dsh-market` locale namespace.
+  webUiDesktop.disableDuplicateClientFace(target, debugLog)
   debugLog(`Using independent plugin market ${MARKET_VERSION}: ${target}`)
   return target
 }
 
 async function installWebUi(runtimeRoot, home) {
-  const target = await updater.syncRuntimePackageToProfile(
-    runtimeRoot,
-    home,
-    '@linxin666/dsh-web-ui-all',
-    WEB_UI_VERSION,
-  )
-  debugLog(`Using bundled dsh-web-ui suite ${WEB_UI_VERSION}: ${target}`)
-  return target
+  const packages = webUiDesktop.WEB_UI_PACKAGES
+  const aggregate = packages.find(([name]) => name === '@linxin666/dsh-web-ui-all')
+  const fullClosure = packages.filter(([name]) => (
+    name === '@linxin666/dsh-web-ui-all'
+      || name === 'dsh-better-sidebar'
+      || name === '@mlgbnb/dsh-archive-manager'
+  ))
+  const fullTargets = await Promise.all(fullClosure.map(([name, version]) => (
+    updater.syncRuntimePackageToProfile(runtimeRoot, home, name, version)
+  )))
+  const shallowPackages = packages.filter(([name]) => !fullClosure.some(([fullName]) => fullName === name))
+  await Promise.all(shallowPackages.map(([name, version]) => (
+    updater.syncRuntimePackageRootToProfile(runtimeRoot, home, name, version)
+  )))
+  const aggregateTarget = fullTargets[fullClosure.findIndex(([name]) => name === aggregate?.[0])]
+  debugLog(`Using bundled dsh-web-ui suite ${WEB_UI_VERSION}: ${aggregateTarget}`)
+  return aggregateTarget
 }
+
 
 function isReadyRuntime(root) {
   try {
@@ -372,6 +391,46 @@ function localNodePath() {
   return process.platform === 'win32' ? 'node.exe' : 'node'
 }
 
+function localProfileSeedRoot(runtimeRoot) {
+  const configured = process.env.DEEPSEEK_HARNESS_PROFILE_SEED
+  const candidates = [
+    configured,
+    path.join(runtimeRoot, 'harness-profile'),
+    path.join(runtimeRoot, 'build', 'harness-profile'),
+  ].filter(Boolean)
+  return candidates.find(candidate => fs.existsSync(path.join(candidate, 'profiles', 'node_modules')))
+}
+
+function localProfileSeedArchive(runtimeRoot) {
+  const configured = process.env.DEEPSEEK_HARNESS_PROFILE_SEED_ARCHIVE
+  const candidates = [
+    configured,
+    path.join(runtimeRoot, 'harness-profile.tar.gz'),
+    path.join(runtimeRoot, 'build', 'harness-profile.tar.gz'),
+  ].filter(Boolean)
+  return candidates.find(candidate => fs.existsSync(candidate))
+}
+
+async function installProfileSeedArchive(archive, home) {
+  const target = path.join(home, 'profiles')
+  if (fs.existsSync(path.join(target, 'node_modules'))) return false
+  const staging = path.join(home, `.profile-seed-${process.pid}-${Date.now()}`)
+  fs.mkdirSync(staging, { recursive: true })
+  try {
+    await runExtractor(archive, staging)
+    const extractedRoot = fs.existsSync(path.join(staging, 'profiles', 'node_modules'))
+      ? staging
+      : path.join(staging, 'harness-profile')
+    if (!fs.existsSync(path.join(extractedRoot, 'profiles', 'node_modules'))) {
+      throw new Error('预构建 profile 缺少 node_modules')
+    }
+    await retryFilesystemOperation('启用预构建 profile', () => fs.promises.rename(path.join(extractedRoot, 'profiles'), target))
+    return true
+  } finally {
+    removeRuntimeResidue(staging, 'profile seed staging')
+  }
+}
+
 function localHarnessPath(runtimeRoot) {
   const separator = process.platform === 'win32' ? ';' : ':'
   const candidates = [
@@ -426,9 +485,20 @@ async function startLocalHarness() {
 
   const home = path.join(app.getPath('userData'), 'harness-home')
   fs.mkdirSync(home, { recursive: true })
-  await installEffectivePlugin(runtimeRoot, home)
-  await installPluginMarket(runtimeRoot, home)
-  await installWebUi(runtimeRoot, home)
+  const seedArchive = localProfileSeedArchive(runtimeRoot)
+  const seedRoot = localProfileSeedRoot(runtimeRoot)
+  const seeded = seedArchive
+    ? await installProfileSeedArchive(seedArchive, home)
+    : seedRoot
+      ? await updater.syncSeededProfileToHome(seedRoot, home)
+      : false
+  if (seeded) debugLog(`Installed prebuilt dsh-web-ui profile seed from ${runtimeRoot}`)
+  if (!seeded) {
+    await installEffectivePlugin(runtimeRoot, home)
+    await installPluginMarket(runtimeRoot, home)
+    await installWebUi(runtimeRoot, home)
+    webUiDesktop.ensureProfileBundles(home, debugLog)
+  }
   const patch = localPatchPath()
   // The web command passes unknown options through to the web app. Keep the
   // launcher-owned patch option before --port so it is consumed by dsh.

@@ -33,8 +33,10 @@ test('ships verified archives and references every package from the root install
   }
 })
 
-test('mounts the aggregate as an independent desktop bundle', () => {
-  const patch = readFileSync(join(repositoryRoot, 'desktop', 'harness-local.patch.yml'), 'utf8')
-  assert.match(patch, /id:\s*dsh-web-ui-all/)
-  assert.match(patch, /name:\s*['"]@linxin666\/dsh-web-ui-all['"]/)
+test('keeps the desktop bundle integration in its isolated adapter directory', () => {
+  const adapter = readFileSync(join(adapterRoot, 'desktop', 'runtime-integration.cjs'), 'utf8')
+  assert.match(adapter, /@linxin666\/dsh-web-ui-all/)
+  assert.match(adapter, /ensureProfileBundles/)
+  const builder = readFileSync(join(repositoryRoot, 'desktop', 'harness-builder.yml'), 'utf8')
+  assert.match(builder, /dsh-web-ui-adapter\/desktop\/runtime-integration\.cjs/)
 })

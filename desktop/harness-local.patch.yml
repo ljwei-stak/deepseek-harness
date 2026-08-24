@@ -4,22 +4,7 @@
 - id: session-title-llm
   disabled: true
 
-# Mount the installable Model Router + GALGame plugin in the local Web profile.
-# The package is shipped in the runtime's top-level node_modules so the normal
-# Harness bundle resolver can load both its Host and browser faces.
-- insert:
-    - id: model-router-galgame
-      name: model-router-galgame
-
-# The market is an independent profile bundle. It can be disabled or updated
-# without changing the Model Router package mounted above.
-- insert:
-    - id: dsh-market
-      name: dshmarket
-
-# The reviewed dsh-web-ui aggregate and all of its child packages are bundled
-# with the desktop runtime. This avoids the plugin market's build-script prompt
-# for native and tunnel dependencies on a fresh installation.
-- insert:
-    - id: dsh-web-ui-all
-      name: '@linxin666/dsh-web-ui-all'
+# The desktop launcher adds the three shipped packages to
+# dsh.profile.bundles before starting the Web profile. They must be bundles,
+# rather than ordinary insert rows, so Harness also applies each package's
+# declared cordis.patch.yml and its complete browser-plugin roster.

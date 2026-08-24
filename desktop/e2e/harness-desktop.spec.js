@@ -5,7 +5,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { _electron: electron, expect, test } = require('@playwright/test')
 
-const HARNESS_RUNTIME_VERSION = '0.5.0'
+const HARNESS_RUNTIME_VERSION = '0.5.1'
 const WINDOWS_SYSTEM_PATH = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
 
 function listen(server) {
@@ -72,7 +72,9 @@ async function expectMarketSettingsSection(window) {
   }
   await window.getByRole('button', { name: /^(设置|Settings)$/ }).click()
   const settings = window.getByRole('dialog', { name: /^(设置|Settings)$/ })
-  await expect(settings.getByRole('button', { name: /^(插件市场|Plugin Market)$/ })).toBeVisible()
+  // dsh-web-ui 0.2.9 labels the market section “创意工坊”; older snapshots
+  // used “插件市场”. Either label is the same bundled market feature.
+  await expect(settings.getByText(/^(插件市场|Plugin Market|创意工坊|Workshop)$/)).toBeVisible()
 }
 
 test('Harness desktop starts the bundled local runtime with one choice', async ({}) => {
@@ -103,6 +105,12 @@ test('Harness desktop starts the bundled local runtime with one choice', async (
     expect(market.status).toBe(200)
     expect(market.body.version).toBe('1.18.0')
     expect(market.body.pnpm).toBe(true)
+    const bootIds = await window.evaluate(() => window.__DSH_BOOT__?.entries?.map(entry => entry.id) ?? [])
+    expect(bootIds).toContain('@linxin666/dsh-client-ui-web-ui-settings')
+    expect(bootIds).toContain('@linxin666/dsh-client-ui-market')
+    expect(bootIds).toContain('@linxin666/dsh-client-ui-skin-center')
+    expect(bootIds).toContain('@linxin666/dsh-client-ui-task-board')
+    expect(bootIds).toContain('@linxin666/dsh-client-ui-plugin-manager')
     await expectMarketSettingsSection(window)
   } finally {
     await electronApp.close()
@@ -160,7 +168,10 @@ test('Harness desktop replaces an empty workspace with a readable connection err
 })
 
 test('packaged Harness extracts and starts its embedded local runtime', async ({}) => {
-  test.setTimeout(180_000)
+  // The first packaged launch extracts the complete local runtime and profile
+  // seed (about 1 GB compressed); allow slower disks while keeping the test
+  // bounded and deterministic.
+  test.setTimeout(360_000)
   const desktopRoot = path.resolve(__dirname, '..')
   const executablePath = path.join(desktopRoot, 'dist', 'win-unpacked', 'DeepSeek Harness.exe')
   // Keep the profile outside the repository so package resolution cannot
@@ -188,7 +199,7 @@ test('packaged Harness extracts and starts its embedded local runtime', async ({
     await expect(window.getByRole('heading', { name: '选择运行方式' })).toBeVisible()
     await window.getByRole('button', { name: /本地运行/ }).click()
     await window.getByRole('button', { name: '启动本地服务' }).click()
-    await window.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout: 150_000 })
+    await window.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout: 300_000 })
     await expect(window.locator('#root')).not.toBeEmpty({ timeout: 15_000 })
     localPort = Number(new URL(window.url()).port)
     expect(localPort).toBeGreaterThan(0)

@@ -55,6 +55,11 @@ if [[ -L "$web_ui_runtime" ]]; then
   cp -a -- "$web_ui_source/." "$web_ui_runtime/"
 fi
 
+echo 'Creating the prebuilt Harness profile seed ...'
+node "$project_root/scripts/build_harness_profile.mjs"
+tar -czf "$build_root/harness-profile.tar.gz" -C "$build_root" harness-profile
+rm -rf -- "$build_root/harness-profile"
+
 node_source="${DEEPSEEK_HARNESS_NODE_SOURCE:-}"
 if [[ -z "$node_source" ]]; then
   node_source="$(command -v node)"
@@ -88,7 +93,9 @@ tar -czf "$archive_path" \
   --exclude='**/node_modules/.cache' \
   --exclude='**/*.tsbuildinfo' \
   -C "$project_root" \
-  apps packages vendor native node_modules package.json pnpm-workspace.yaml
+  apps packages vendor native node_modules package.json pnpm-workspace.yaml \
+  -C "$build_root" \
+  harness-profile.tar.gz
 
 archive_size=$(stat -c '%s' -- "$archive_path")
 if (( archive_size < 100 * 1024 * 1024 )); then

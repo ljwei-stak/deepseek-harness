@@ -4,7 +4,7 @@ asar: true
 electronDist: node_modules/electron/dist
 extraMetadata:
   main: harness-main.js
-  version: 0.5.0
+  version: 0.5.1
 directories:
   output: dist
 files:
@@ -22,6 +22,8 @@ extraResources:
     to: harness-tools
   - from: harness-local.patch.yml
     to: harness-local.patch.yml
+  - from: ../plugins/dsh-web-ui-adapter/desktop/runtime-integration.cjs
+    to: dsh-web-ui-desktop/runtime-integration.cjs
 win:
   icon: assets/app-icon.png
   target:

@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Version,
-    [int]$PartSizeMiB = 50
+    [int]$PartSizeMiB = 50,
+    [switch]$SplitInstaller
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,7 +15,7 @@ $desktopPackage = Get-Content -Raw (Join-Path $desktopRoot 'package.json') | Con
 if (-not $Version) { $Version = [string]$desktopPackage.version }
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must use x.y.z format: $Version" }
 if ([string]$desktopPackage.version -ne $Version) { throw "Desktop package version is $($desktopPackage.version), expected $Version." }
-if ($PartSizeMiB -lt 5) { throw 'PartSizeMiB must be at least 5.' }
+if ($SplitInstaller -and $PartSizeMiB -lt 5) { throw 'PartSizeMiB must be at least 5.' }
 
 $pluginVersion = [string]$pluginPackage.version
 $installerName = "DeepSeek-Harness-ModelRouter-GALGame-Setup-$Version-Windows-x64.exe"
@@ -46,36 +47,37 @@ Get-ChildItem -LiteralPath $outputRoot -Filter $partPattern -File | ForEach-Obje
     Remove-Item -LiteralPath $_.FullName -Force
 }
 
-Write-Host "Splitting installer into $PartSizeMiB MiB parts ..."
 $partSize = $PartSizeMiB * 1MB
 $buffer = New-Object byte[] (1MB)
 $partNames = [System.Collections.Generic.List[string]]::new()
-$inputStream = [IO.File]::OpenRead($installer)
-try {
-    $partIndex = 1
-    while ($inputStream.Position -lt $inputStream.Length) {
-        $partName = '{0}.part{1:D2}' -f $installerName, $partIndex
-        $partPath = Join-Path $outputRoot $partName
-        $partStream = [IO.File]::Create($partPath)
-        try {
-            $written = 0L
-            while ($written -lt $partSize -and $inputStream.Position -lt $inputStream.Length) {
-                $remaining = [Math]::Min($buffer.Length, $partSize - $written)
-                $read = $inputStream.Read($buffer, 0, [int]$remaining)
-                if ($read -le 0) { break }
-                $partStream.Write($buffer, 0, $read)
-                $written += $read
+if ($SplitInstaller) {
+    Write-Host "Splitting installer into $PartSizeMiB MiB parts ..."
+    $inputStream = [IO.File]::OpenRead($installer)
+    try {
+        $partIndex = 1
+        while ($inputStream.Position -lt $inputStream.Length) {
+            $partName = '{0}.part{1:D2}' -f $installerName, $partIndex
+            $partPath = Join-Path $outputRoot $partName
+            $partStream = [IO.File]::Create($partPath)
+            try {
+                $written = 0L
+                while ($written -lt $partSize -and $inputStream.Position -lt $inputStream.Length) {
+                    $remaining = [Math]::Min($buffer.Length, $partSize - $written)
+                    $read = $inputStream.Read($buffer, 0, [int]$remaining)
+                    if ($read -le 0) { break }
+                    $partStream.Write($buffer, 0, $read)
+                    $written += $read
+                }
+            } finally {
+                $partStream.Dispose()
             }
-        } finally {
-            $partStream.Dispose()
+            $partNames.Add($partName)
+            $partIndex += 1
         }
-        $partNames.Add($partName)
-        $partIndex += 1
+    } finally {
+        $inputStream.Dispose()
     }
-} finally {
-    $inputStream.Dispose()
 }
-if ($partNames.Count -eq 0) { throw 'Installer splitting produced no parts.' }
 
 Copy-Item -LiteralPath $blockmap -Destination (Join-Path $outputRoot ([IO.Path]::GetFileName($blockmap))) -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'download_desktop_release.ps1') -Destination (Join-Path $outputRoot 'download_desktop_release.ps1') -Force
@@ -118,4 +120,4 @@ $checksumLines | Set-Content -LiteralPath (Join-Path $outputRoot 'SHA256SUMS.txt
 Write-Host "Update assets: $outputRoot"
 Write-Host "Plugin SHA256: $pluginHash"
 Write-Host "Installer SHA256: $installerHash"
-Write-Host "Installer parts: $($partNames.Count)"
+Write-Host "Installer parts: $($partNames.Count) (complete installer: $installerName)"

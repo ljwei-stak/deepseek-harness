@@ -862,6 +862,109 @@ async function syncRuntimePackageToProfile(runtimeRoot, home, name, expectedVers
   return target
 }
 
+/**
+ * Install a package root without copying its dependency tree. The bundled
+ * dsh-web-ui aggregate already owns the complete child-package closure; the
+ * child packages only need top-level roots so their bundle identifiers can be
+ * resolved without repeating the same expensive recursive copy.
+ *
+ * @param {string} runtimeRoot extracted Harness runtime root
+ * @param {string} home profile home directory
+ * @param {string} name package name
+ * @param {string} expectedVersion required package version
+ * @returns {Promise<string>} installed package directory
+ */
+async function syncRuntimePackageRootToProfile(runtimeRoot, home, name, expectedVersion) {
+  assertPackageName(name)
+  const runtimeNodeModules = fs.realpathSync(path.join(runtimeRoot, 'node_modules'))
+  const source = path.join(runtimeRoot, 'node_modules', ...name.split('/'))
+  const sourceManifest = packageManifest(source)
+  if (sourceManifest.name !== name || sourceManifest.version !== parseVersion(expectedVersion).raw) {
+    throw new Error(`内置 ${name} 版本不匹配：需要 ${expectedVersion}，实际为 ${sourceManifest.version || '未知'}`)
+  }
+  const sourceReal = fs.realpathSync(source)
+  if (!isInsideDirectory(runtimeNodeModules, sourceReal)) {
+    throw new Error(`程序包 ${name} 解析到了运行时之外：${sourceReal}`)
+  }
+
+  const targetParent = path.join(home, 'profiles', 'node_modules')
+  const target = path.join(targetParent, ...name.split('/'))
+  await fs.promises.mkdir(targetParent, { recursive: true })
+  try {
+    const installed = packageManifest(target)
+    if (installed.name === name && compareVersions(installed.version, sourceManifest.version) >= 0) return target
+  } catch {
+    // An absent, incomplete, or externally resolved package is replaced atomically below.
+  }
+
+  const staging = randomSibling(target, 'installing-root')
+  const backup = randomSibling(target, 'backup-root')
+  let hasBackup = false
+  try {
+    await fs.promises.cp(sourceReal, staging, {
+      recursive: true,
+      force: false,
+      errorOnExist: true,
+      dereference: true,
+      filter(candidate) {
+        const relative = path.relative(sourceReal, candidate)
+        return relative === '' && candidate === sourceReal || relative.split(path.sep)[0] !== 'node_modules'
+      },
+    })
+    const installed = packageManifest(staging)
+    if (installed.name !== name || installed.version !== sourceManifest.version) {
+      throw new Error(`复制后的 ${name} 版本不一致`)
+    }
+    try {
+      await fs.promises.lstat(target)
+      await retryFilesystemOperation(`备份当前 ${name}`, () => fs.promises.rename(target, backup))
+      hasBackup = true
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+    await retryFilesystemOperation(`启用 ${name}`, () => fs.promises.rename(staging, target))
+  } catch (error) {
+    await bestEffortRemove(staging)
+    if (hasBackup) {
+      await bestEffortRemove(target)
+      try {
+        await retryFilesystemOperation(`恢复原 ${name}`, () => fs.promises.rename(backup, target))
+      } catch (restoreError) {
+        throw new Error(`启用 ${name} 失败，且无法恢复原程序包：${restoreError.message}`, { cause: error })
+      }
+    }
+    throw error
+  }
+  if (hasBackup) await bestEffortRemove(backup)
+  return target
+}
+
+/**
+ * Atomically install a build-time profile seed for a user without an existing
+ * profile package tree. Existing profiles are left untouched so their history
+ * and community plugins remain authoritative.
+ *
+ * @param {string} seedRoot directory containing a `profiles` tree
+ * @param {string} home Harness home directory
+ * @returns {Promise<boolean>} whether the seed was installed
+ */
+async function syncSeededProfileToHome(seedRoot, home) {
+  const source = path.join(seedRoot, 'profiles')
+  const target = path.join(home, 'profiles')
+  if (!fs.existsSync(path.join(source, 'node_modules'))) return false
+  if (fs.existsSync(path.join(target, 'node_modules'))) return false
+  await fs.promises.mkdir(home, { recursive: true })
+  const staging = randomSibling(target, 'seed-installing')
+  try {
+    await fs.promises.cp(source, staging, { recursive: true, force: false, errorOnExist: true, dereference: true })
+    await retryFilesystemOperation('启用预构建 profile', () => fs.promises.rename(staging, target))
+  } catch (error) {
+    await bestEffortRemove(staging)
+    throw error
+  }
+  return true
+}
+
 function effectivePluginVersion(userData, bundledVersion, runtimeVersion) {
   const active = activePluginRecord(userData)
   if (active === null) return parseVersion(bundledVersion).raw
@@ -897,4 +1000,6 @@ module.exports = {
   sha256File,
   syncPluginToProfile,
   syncRuntimePackageToProfile,
+  syncRuntimePackageRootToProfile,
+  syncSeededProfileToHome,
 }

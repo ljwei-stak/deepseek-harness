@@ -1,17 +1,18 @@
 {
   "name": "deepseek-harness-desktop",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "DeepSeek Harness desktop client with Model Router + GALGame, dsh-market, and the complete dsh-web-ui suite",
   "author": "Jianwei Li <ljwei-stak@users.noreply.github.com>",
   "homepage": "https://github.com/ljwei-stak/deepseek-harness",
+  "desktopName": "deepseek-harness",
   "main": "harness-main.js",
   "scripts": {
     "prestart": "npm --prefix ../apps/web run build",
     "start": "electron .",
     "test": "node --test tests/*.test.js",
     "test:e2e": "playwright test",
-    "pack": "electron-builder --dir",
+    "pack": "electron-builder --config harness-builder.yml --dir",
     "dist:harness:win": "electron-builder --config harness-builder.yml --win nsis",
     "dist:harness:linux": "electron-builder --config harness-builder-linux.yml --linux deb rpm --x64 --publish never"
   },
