@@ -5,7 +5,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { _electron: electron, expect, test } = require('@playwright/test')
 
-const HARNESS_RUNTIME_VERSION = '0.5.1'
+const HARNESS_RUNTIME_VERSION = '0.5.2'
 const WINDOWS_SYSTEM_PATH = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
 
 function listen(server) {
@@ -120,6 +120,53 @@ test('Harness desktop starts the bundled local runtime with one choice', async (
   fs.rmSync(profile, { recursive: true, force: true })
 })
 
+test('Harness repairs an incomplete dsh-web-ui child dependency on upgrade', async ({}) => {
+  test.setTimeout(240_000)
+  const desktopRoot = path.resolve(__dirname, '..')
+  const projectRoot = path.resolve(desktopRoot, '..')
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'deepseek-harness-upgrade-'))
+  const stalePackage = path.join(
+    profile,
+    'harness-home',
+    'profiles',
+    'node_modules',
+    '@linxin666',
+    'dsh-client-ui-market',
+  )
+  fs.mkdirSync(path.dirname(stalePackage), { recursive: true })
+  fs.cpSync(
+    path.join(projectRoot, 'node_modules', '@linxin666', 'dsh-client-ui-market'),
+    stalePackage,
+    { recursive: true, dereference: true },
+  )
+  fs.rmSync(path.join(stalePackage, 'node_modules'), { recursive: true, force: true })
+
+  const electronApp = await launchHarness(desktopRoot, profile, {
+    DEEPSEEK_HARNESS_RUNTIME_ROOT: projectRoot,
+    DEEPSEEK_HARNESS_NODE_PATH: process.execPath,
+    PATH: WINDOWS_SYSTEM_PATH,
+  })
+
+  let localPort
+  try {
+    const window = await electronApp.firstWindow()
+    await expect(window.getByRole('heading', { name: '选择运行方式' })).toBeVisible()
+    await window.getByRole('button', { name: /本地运行/ }).click()
+    await window.getByRole('button', { name: '启动本地服务' }).click()
+    await window.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout: 180_000 })
+    await expect(window.locator('#root')).not.toBeEmpty({ timeout: 15_000 })
+    localPort = Number(new URL(window.url()).port)
+    await expectMarketSettingsSection(window)
+    expect(fs.existsSync(path.join(stalePackage, 'node_modules', 'schemastery', 'package.json'))).toBe(true)
+    expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain("Cannot find package 'schemastery'")
+  } finally {
+    await electronApp.close()
+  }
+
+  await waitForPortClosed(localPort)
+  fs.rmSync(profile, { recursive: true, force: true })
+})
+
 test('Harness desktop connects to the selected server workspace', async ({}, testInfo) => {
   const desktopRoot = path.resolve(__dirname, '..')
   const server = http.createServer((_request, response) => {
@@ -219,8 +266,10 @@ test('packaged Harness extracts and starts its embedded local runtime', async ({
     expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', '@linxin666', 'dsh-web-ui-all', 'package.json'))).toBe(true)
     expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', '@linxin666', 'dsh-web-ui-all', 'node_modules', '@linxin666', 'dsh-client-ui-market', 'package.json'))).toBe(true)
     expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', '@linxin666', 'dsh-web-ui-all', 'node_modules', '@linxin666', 'dsh-client-ui-skin-center', 'package.json'))).toBe(true)
+    expect(fs.existsSync(path.join(profile, 'harness-home', 'profiles', 'node_modules', '@linxin666', 'dsh-client-ui-market', 'node_modules', 'schemastery', 'package.json'))).toBe(true)
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('Cannot find package model-router-galgame')
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('Cannot find package dshmarket')
+    expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain("Cannot find package 'schemastery'")
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).not.toContain('ENOTEMPTY')
     expect(fs.readFileSync(path.join(profile, 'client.log'), 'utf8')).toContain(`Activated local runtime ${HARNESS_RUNTIME_VERSION}`)
   } finally {

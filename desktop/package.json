@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-desktop",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "description": "DeepSeek Harness desktop client with Model Router + GALGame, dsh-market, and the complete dsh-web-ui suite",
   "author": "Jianwei Li <ljwei-stak@users.noreply.github.com>",
