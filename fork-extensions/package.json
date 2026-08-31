@@ -1,0 +1,7 @@
+{
+  "name": "deepseek-harness-desktop",
+  "version": "0.3.1",
+  "private": true,
+  "description": "DeepSeek Harness desktop client with Model Router + GALGame plugin",
+  "main": "harness-main.js"
+}
